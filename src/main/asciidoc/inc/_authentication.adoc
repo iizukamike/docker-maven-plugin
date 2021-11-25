@@ -206,6 +206,25 @@ For a more complete, robust and reliable authentication experience, you can add 
     <plugin>
         <groupId>io.fabric8</groupId>
         <artifactId>docker-maven-plugin</artifactId>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sso</artifactId>
+            <version>2.17.88</version>
+        </dependency>
+    </plugin>
+</plugins>
+----
+
+This extra dependency allows the usage of all link:https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html[options] that the AWS default credential provider chain provides.
+
+or alternatively the V1 api which does not support AWS SSO
+
+[source,xml]
+----
+<plugins>
+    <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
         <dependencies>
             <dependency>
                 <groupId>com.amazonaws</groupId>
@@ -217,7 +236,5 @@ For a more complete, robust and reliable authentication experience, you can add 
 </plugins>
 ----
 
-This extra dependency allows the usage of all link:https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html[options] that the AWS default credential provider chain provides.
-
-If the AWS SDK is found in the classpath, it takes precedence over the custom AWS credentials lookup mechanisms listed above.
+If either AWS SDK is found in the classpath, it takes precedence over the custom AWS credentials lookup mechanisms listed above.
 ====

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
@@ -272,16 +273,28 @@ public class AuthConfigFactory {
         return null;
     }
 
-    private AuthConfig getAuthConfigViaAwsSdk() {
+    private static boolean classIsOnClasspath(String className)
+    {
         try {
-            Class.forName("com.amazonaws.auth.DefaultAWSCredentialsProviderChain");
+            Class.forName(className);
+            return true;
         } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    private AuthConfig getAuthConfigViaAwsSdk() {
+        if (Stream.of(
+                "software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider",
+                "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
+                .noneMatch(AuthConfigFactory::classIsOnClasspath)) {
             log.info("It appears that you're using AWS ECR." +
                     " Consider integrating the AWS SDK in order to make use of common AWS authentication mechanisms," +
                     " see https://dmp.fabric8.io/#extended-authentication");
             return null;
+        } else {
+            return new AwsSdkAuthConfigFactory(log).createAuthConfig();
         }
-        return new AwsSdkAuthConfigFactory(log).createAuthConfig();
     }
 
     /**
