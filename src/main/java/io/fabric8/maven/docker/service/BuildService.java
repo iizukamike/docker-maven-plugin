@@ -114,14 +114,15 @@ public class BuildService {
     }
 
     public void tagImage(ImageConfiguration imageConfig) throws DockerAccessException {
-
         List<String> tags = imageConfig.getBuildConfiguration().getTags();
         if (!tags.isEmpty()) {
             String imageName = imageConfig.getName();
-            log.info("%s: Tag with %s", imageConfig.getDescription(), EnvUtil.stringJoin(tags, ","));
+            log.info("%s: Tag with %s", imageConfig.getDescription(), String.join(",", tags));
+
+            BuildImageConfiguration buildConfig = imageConfig.getBuildConfiguration();
 
             for (String tag : tags) {
-                tagImage(imageName, tag, null);
+                tagImage(imageName, tag, null, buildConfig.cleanupMode());
             }
         }
     }
@@ -172,7 +173,7 @@ public class BuildService {
         // auto is now supported by docker, consider switching?
         BuildOptions opts =
                 new BuildOptions(buildConfig.getBuildOptions())
-                        .dockerfile(getDockerfileName(buildConfig))
+                        .dockerfile(buildConfig.getDockerfileName())
                         .forceRemove(cleanupMode.isRemove())
                         .noCache(noCache)
                         .squash(squash)
@@ -182,26 +183,24 @@ public class BuildService {
         String newImageId = doBuildImage(imageName, dockerArchive, opts);
         log.info("%s: Built image %s", imageConfig.getDescription(), newImageId);
 
-        if (oldImageId != null && !oldImageId.equals(newImageId)) {
-            try {
-                docker.removeImage(oldImageId, true);
-                log.info("%s: Removed old image %s", imageConfig.getDescription(), oldImageId);
-            } catch (DockerAccessException exp) {
-                if (cleanupMode == CleanupMode.TRY_TO_REMOVE) {
-                    log.warn("%s: %s (old image)%s", imageConfig.getDescription(), exp.getMessage(),
-                            (exp.getCause() != null ? " [" + exp.getCause().getMessage() + "]" : ""));
-                } else {
-                    throw exp;
-                }
-            }
-        }
+        removeDanglingImage(imageName, oldImageId, newImageId, cleanupMode, true);
     }
 
-    public void tagImage(String imageName, String tag, String repo) throws DockerAccessException {
+    public void tagImage(String imageName, String tag, String repo, CleanupMode cleanupMode) throws DockerAccessException {
         if (tag != null) {
             String fullImageName = new ImageName(imageName, tag).getNameWithOptionalRepository(repo);
+
+            String oldImageId = null;
+            if (cleanupMode.isRemove()) {
+                oldImageId = queryService.getImageId(fullImageName);
+            }
+
             docker.tag(imageName, fullImageName, true);
             log.info("Tagging image %s successful!", fullImageName);
+
+            String newImageId = queryService.getImageId(fullImageName);
+
+            removeDanglingImage(fullImageName, oldImageId, newImageId, cleanupMode, false);
         }
     }
 
@@ -289,14 +288,6 @@ public class BuildService {
         return null;
     }
 
-    private String getDockerfileName(BuildImageConfiguration buildConfig) {
-        if (buildConfig.isDockerFileMode()) {
-            return buildConfig.getDockerFile().getName();
-        } else {
-            return null;
-        }
-    }
-
     private String doBuildImage(String imageName, File dockerArchive, BuildOptions options)
             throws DockerAccessException, MojoExecutionException {
         docker.buildImage(imageName, dockerArchive, options);
@@ -365,6 +356,7 @@ public class BuildService {
     private void autoPullBaseImage(ImageConfiguration imageConfig, ImagePullManager imagePullManager, BuildContext buildContext)
             throws DockerAccessException, MojoExecutionException {
         BuildImageConfiguration buildConfig = imageConfig.getBuildConfiguration();
+        CleanupMode cleanupMode = buildConfig.cleanupMode();
 
         if (buildConfig.getDockerArchive() != null) {
             // No auto pull needed in archive mode
@@ -383,22 +375,43 @@ public class BuildService {
         }
         for (String fromImage : fromImages) {
             if (fromImage != null && !DockerAssemblyManager.SCRATCH_IMAGE.equals(fromImage)) {
-                registryService.pullImageWithPolicy(fromImage, imagePullManager, buildContext.getRegistryConfig(), queryService.hasImage(fromImage));
+                String oldImageId = null;
+                if (cleanupMode.isRemove()) {
+                    oldImageId = queryService.getImageId(fromImage);
+                }
+
+                registryService.pullImageWithPolicy(fromImage, imagePullManager, buildContext.getRegistryConfig(), buildConfig);
+
+                String newImageId = queryService.getImageId(fromImage);
+
+                removeDanglingImage(fromImage, oldImageId, newImageId, cleanupMode, false);
             }
         }
     }
 
-    private void autoPullCacheFromImage(ImageConfiguration imageConfig, ImagePullManager imagePullManager, BuildContext buildContext) throws MojoExecutionException {
+    private void autoPullCacheFromImage(ImageConfiguration imageConfig, ImagePullManager imagePullManager, BuildContext buildContext) throws DockerAccessException, MojoExecutionException {
         if (imageConfig.getBuildConfiguration().getCacheFrom() == null) {
             return;
         }
 
-        for (String cacheFromImage : imageConfig.getBuildConfiguration().getCacheFrom()) {
+        BuildImageConfiguration buildConfig = imageConfig.getBuildConfiguration();
+        CleanupMode cleanupMode = buildConfig.cleanupMode();
+
+        for (String cacheFromImage : buildConfig.getCacheFrom()) {
+            String oldImageId = null;
+            if (cleanupMode.isRemove()) {
+                oldImageId = queryService.getImageId(cacheFromImage);
+            }
+
             try {
-                registryService.pullImageWithPolicy(cacheFromImage, imagePullManager, buildContext.getRegistryConfig(), queryService.hasImage(cacheFromImage));
+                registryService.pullImageWithPolicy(cacheFromImage, imagePullManager, buildContext.getRegistryConfig(), buildConfig);
             } catch (DockerAccessException e) {
                 log.warn("Could not pull cacheFrom image: '%s'. Reason: %s", cacheFromImage, e.getMessage());
             }
+
+            String newImageId = queryService.getImageId(cacheFromImage);
+
+            removeDanglingImage(cacheFromImage, oldImageId, newImageId, cleanupMode, false);
         }
     }
 
@@ -406,7 +419,7 @@ public class BuildService {
         String fromImage;
         fromImage = buildConfig.getFrom();
         if (fromImage == null) {
-            List<AssemblyConfiguration> assemblyConfig = buildConfig.getAssemblyConfigurations();
+            List<AssemblyConfiguration> assemblyConfig = buildConfig.getAllAssemblyConfigurations();
             if (assemblyConfig.isEmpty()) {
                 fromImage = DockerAssemblyManager.DEFAULT_DATA_BASE_IMAGE;
             }
@@ -428,6 +441,38 @@ public class BuildService {
             return Collections.emptyList();
         }
         return fromImage;
+    }
+
+    private void removeDanglingImage(String oldImageName, String oldImageId, String newImageId, CleanupMode cleanupMode, boolean force) throws DockerAccessException {
+        if (oldImageId != null && !oldImageId.equals(newImageId)) {
+            if (force) {
+                removeImage(oldImageName, oldImageId, cleanupMode, true);
+            } else {
+                // Verify that the image is indeed dangling and remove it (or skip removal altogether).
+                List<String> oldImageTags = docker.getImageTags(oldImageId);
+                if (oldImageTags != null) {
+                    if (oldImageTags.isEmpty()) {
+                        removeImage(oldImageName, oldImageId, cleanupMode, false);
+                    } else {
+                        log.warn("%s: Skipped removing image %s; still tagged with: ", oldImageName, oldImageId, String.join(",", oldImageTags));
+                    }
+                }
+            }
+        }
+    }
+
+    private void removeImage(String oldImageName, String oldImageId, CleanupMode cleanupMode, boolean force) throws DockerAccessException {
+        try {
+            docker.removeImage(oldImageId, force);
+            log.info("%s: Removed dangling image %s", oldImageName, oldImageId);
+        } catch (DockerAccessException exp) {
+            if (cleanupMode == CleanupMode.TRY_TO_REMOVE) {
+                log.warn("%s: %s (dangling image)%s", oldImageName, exp.getMessage(),
+                        (exp.getCause() != null ? " [" + exp.getCause().getMessage() + "]" : ""));
+            } else {
+                throw exp;
+            }
+        }
     }
 
     private boolean checkForNocache(ImageConfiguration imageConfig) {

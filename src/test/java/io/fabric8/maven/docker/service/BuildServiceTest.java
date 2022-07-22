@@ -1,105 +1,107 @@
 package io.fabric8.maven.docker.service;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
-
+import java.util.List;
 import java.util.Properties;
 
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.project.MavenProject;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.fabric8.maven.docker.access.BuildOptions;
 import io.fabric8.maven.docker.access.DockerAccess;
 import io.fabric8.maven.docker.access.DockerAccessException;
 import io.fabric8.maven.docker.assembly.DockerAssemblyManager;
+import io.fabric8.maven.docker.config.AssemblyConfiguration;
 import io.fabric8.maven.docker.config.BuildImageConfiguration;
-import io.fabric8.maven.docker.util.DockerFileUtilTest;
+import io.fabric8.maven.docker.config.CleanupMode;
 import io.fabric8.maven.docker.config.ImageConfiguration;
 import io.fabric8.maven.docker.util.Logger;
 import io.fabric8.maven.docker.util.MojoParameters;
-import mockit.Expectations;
-import mockit.FullVerifications;
-import mockit.Injectable;
-import mockit.Mocked;
-import mockit.Tested;
-import mockit.Verifications;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.project.MavenProject;
-import org.junit.Before;
-import org.junit.Test;
 
-import static org.junit.Assert.assertNotNull;
-
-
-public class BuildServiceTest {
+@ExtendWith(MockitoExtension.class)
+class BuildServiceTest {
 
     private static final String NEW_IMAGE_ID = "efg789efg789";
     private static final String OLD_IMAGE_ID = "abc123abc123";
 
-    @Tested
+    @InjectMocks
     private BuildService buildService;
 
-    @Injectable
+    @Mock
     private DockerAccess docker;
-
-    @Mocked
-    private DockerAssemblyManager dockerAssemblyManager;
 
     private ImageConfiguration imageConfig;
 
-    @Injectable
+    @Mock
     private Logger log;
 
     private String oldImageId;
 
-    @Mocked
+    @Mock
     private MojoParameters params;
 
-    @Mocked
+    @Mock
     Logger logger;
 
-    @Mocked
+    @Mock
     MojoParameters mojoParameters;
 
-    @Mocked
+    @Mock
     MavenProject mavenProject;
 
-    @Injectable
+    @Mock
     private QueryService queryService;
 
-    @Injectable
+    @Mock
     private ArchiveService archiveService;
 
-    @Injectable
+    @Mock
     private RegistryService registryService;
 
-    @Before
-    public void setup() throws Exception {
-        new Expectations() {{
-            archiveService.createArchive(anyString, (BuildImageConfiguration) any, (MojoParameters) any, log);
-            result = new File("docker-build.tar");
-        }};
+    @TempDir
+    private Path tempDir;
+
+    @BeforeEach
+    void setup() throws Exception {
+        Mockito.doReturn(tempDir.resolve("docker-build.tar").toFile())
+            .when(archiveService)
+            .createArchive(Mockito.anyString(), Mockito.any(BuildImageConfiguration.class), Mockito.any(MojoParameters.class), Mockito.any(Logger.class));
     }
 
     @Test
-    public void testBuildImageWithCleanup() throws Exception {
-        givenAnImageConfiguration(true);
+    void testBuildImageWithCleanup() throws Exception {
+        givenAnImageConfiguration(Boolean.TRUE.toString());
         givenImageIds(OLD_IMAGE_ID, NEW_IMAGE_ID);
-        whenBuildImage(true,false);
+        whenBuildImage(true, false);
         thenImageIsBuilt();
         thenOldImageIsRemoved();
     }
 
     @Test
-    public void testBuildImageWithNoCleanup() throws Exception {
-        givenAnImageConfiguration(false);
+    void testBuildImageWithNoCleanup() throws Exception {
+        givenAnImageConfiguration(Boolean.FALSE.toString());
         givenImageIds(OLD_IMAGE_ID, NEW_IMAGE_ID);
-        whenBuildImage(false,false);
+        whenBuildImage(false, false);
         thenImageIsBuilt();
         thenOldImageIsNotRemoved();
     }
 
     @Test
-    public void testCleanupCachedImage() throws Exception {
-        givenAnImageConfiguration(true);
+    void testCleanupCachedImage() throws Exception {
+        givenAnImageConfiguration(Boolean.TRUE.toString());
         givenImageIds(OLD_IMAGE_ID, OLD_IMAGE_ID);
         whenBuildImage(false, false);
         thenImageIsBuilt();
@@ -107,8 +109,8 @@ public class BuildServiceTest {
     }
 
     @Test
-    public void testCleanupNoExistingImage() throws Exception {
-        givenAnImageConfiguration(true);
+    void testCleanupNoExistingImage() throws Exception {
+        givenAnImageConfiguration(Boolean.TRUE.toString());
         givenImageIds(null, NEW_IMAGE_ID);
         whenBuildImage(false, false);
         thenImageIsBuilt();
@@ -116,176 +118,233 @@ public class BuildServiceTest {
     }
 
     @Test
-    public void testMultiStageBuild() throws Exception {
+    void testMultiStageBuild() throws Exception {
         BuildImageConfiguration buildConfig = new BuildImageConfiguration.Builder()
-                .cleanup("false")
-                .dockerFile(DockerFileUtilTest.class.getResource("Dockerfile_multi_stage").getPath())
-                .filter("false")
-                .build();
+            .cleanup("false")
+            .dockerFile(getClass().getResource("/io/fabric8/maven/docker/util/Dockerfile_multi_stage").getPath())
+            .filter("false")
+            .build();
 
         buildConfig.initAndValidate(logger);
 
         imageConfig = new ImageConfiguration.Builder()
-                .name("build-image")
-                .alias("build-alias")
-                .buildConfig(buildConfig)
-                .build();
+            .name("build-image")
+            .alias("build-alias")
+            .buildConfig(buildConfig)
+            .build();
 
-        final ImagePullManager pullManager = new ImagePullManager(null,null, null);
+        final ImagePullManager pullManager = new ImagePullManager(null, null, null);
         final BuildService.BuildContext buildContext = new BuildService.BuildContext.Builder()
-                .mojoParameters(mojoParameters)
-                .build();
+            .mojoParameters(mojoParameters)
+            .build();
 
-        new Expectations(mojoParameters) {{
-            mojoParameters.getProject(); result = mavenProject;
-            mavenProject.getProperties(); result = new Properties();
-        }};
+        mockMavenProject();
 
         File buildArchive = buildService.buildArchive(imageConfig, buildContext, "");
         buildService.buildImage(imageConfig, pullManager, buildContext, buildArchive);
 
         //verify that tries to pull both images
-        new Verifications() {{
-            queryService.hasImage("fabric8/s2i-java");
-            registryService.pullImageWithPolicy("fabric8/s2i-java",  pullManager, buildContext.getRegistryConfig(), false);
-            queryService.hasImage("fabric8/s1i-java");
-            registryService.pullImageWithPolicy("fabric8/s1i-java",  pullManager, buildContext.getRegistryConfig(), false);
-        }};
+        verifyImagePull(buildConfig, pullManager, buildContext, "fabric8/s2i-java");
+        verifyImagePull(buildConfig, pullManager, buildContext, "fabric8/s1i-java");
+    }
+
+    private void verifyImagePull(BuildImageConfiguration buildConfig, ImagePullManager pullManager, BuildService.BuildContext buildContext, String image)
+        throws DockerAccessException, MojoExecutionException {
+        Mockito.verify(registryService).
+            pullImageWithPolicy(image, pullManager, buildContext.getRegistryConfig(), buildConfig);
+    }
+
+    private void mockMavenProject() {
+        Mockito.doReturn(mavenProject).when(mojoParameters).getProject();
+        Mockito.doReturn(new Properties()).when(mavenProject).getProperties();
     }
 
     @Test
-    public void testBuildImageWithCacheFrom_ShouldPullImage() throws Exception {
+    void testBuildImageWithCacheFrom_ShouldPullImage() throws Exception {
         BuildImageConfiguration buildConfig = new BuildImageConfiguration.Builder()
-                .cleanup("false")
-                .cacheFrom("fabric8/s1i-java")
-                .dockerFile(DockerFileUtilTest.class.getResource("Dockerfile_from_simple").getPath())
-                .filter("false")
-                .build();
+            .cleanup("false")
+            .cacheFrom("fabric8/s1i-java")
+            .dockerFile(getClass().getResource("/io/fabric8/maven/docker/util/Dockerfile_from_simple").getPath())
+            .filter("false")
+            .build();
 
         buildConfig.initAndValidate(logger);
 
         imageConfig = new ImageConfiguration.Builder()
-                .name("build-image")
-                .alias("build-alias")
-                .buildConfig(buildConfig)
-                .build();
+            .name("build-image")
+            .alias("build-alias")
+            .buildConfig(buildConfig)
+            .build();
 
-        final ImagePullManager pullManager = new ImagePullManager(null,null, null);
+        final ImagePullManager pullManager = new ImagePullManager(null, null, null);
         final BuildService.BuildContext buildContext = new BuildService.BuildContext.Builder()
-                .mojoParameters(mojoParameters)
-                .build();
+            .mojoParameters(mojoParameters)
+            .build();
 
-        new Expectations(mojoParameters) {{
-            mojoParameters.getProject(); result = mavenProject;
-            mavenProject.getProperties(); result = new Properties();
-        }};
+        mockMavenProject();
 
         File buildArchive = buildService.buildArchive(imageConfig, buildContext, "");
         buildService.buildImage(imageConfig, pullManager, buildContext, buildArchive);
 
         //verify that tries to pull both images
-        new Verifications() {{
-            queryService.hasImage("fabric8/s2i-java");
-            registryService.pullImageWithPolicy("fabric8/s2i-java",  pullManager, buildContext.getRegistryConfig(), false);
-            queryService.hasImage("fabric8/s1i-java");
-            registryService.pullImageWithPolicy("fabric8/s1i-java",  pullManager, buildContext.getRegistryConfig(), false);
-        }};
+        verifyImagePull(buildConfig, pullManager, buildContext, "fabric8/s2i-java");
+        verifyImagePull(buildConfig, pullManager, buildContext, "fabric8/s1i-java");
     }
 
     @Test
-    public void testDockerBuildArchiveOnly() throws Exception {
-        givenAnImageConfiguration(true);
-        final BuildService.BuildContext buildContext = new BuildService.BuildContext.Builder()
-                .mojoParameters(mojoParameters)
+    void testBuildImagePullsDefaultImageWhenNoFromImage() throws Exception {
+        BuildImageConfiguration buildConfig = new BuildImageConfiguration.Builder()
                 .build();
-        File dockerArchive = buildService.buildArchive(imageConfig, buildContext, mavenProject.getBasedir().getAbsolutePath());
-        assertNotNull(dockerArchive);
-    }
 
-    @Test (expected = MojoExecutionException.class)
-    public void testDockerBuildArchiveOnlyWithInvalidPath() throws MojoExecutionException{
-        givenAnImageConfiguration(true);
+        buildConfig.initAndValidate(logger);
+
+        imageConfig = new ImageConfiguration.Builder()
+            .name("test")
+            .buildConfig(buildConfig)
+            .build();
+
+        final ImagePullManager pullManager = new ImagePullManager(null, null, null);
         final BuildService.BuildContext buildContext = new BuildService.BuildContext.Builder()
-                .mojoParameters(mojoParameters)
-                .build();
-        File dockerArchive = buildService.buildArchive(imageConfig, buildContext, "/i/donot/exist");
-        assertNotNull(dockerArchive);
+            .mojoParameters(mojoParameters)
+            .build();
+
+        mockMavenProject();
+
+        File buildArchive = buildService.buildArchive(imageConfig, buildContext, "");
+        buildService.buildImage(imageConfig, pullManager, buildContext, buildArchive);
+
+        verifyImagePull(buildConfig, pullManager, buildContext, DockerAssemblyManager.DEFAULT_DATA_BASE_IMAGE);
     }
 
     @Test
-    public void testTagImage() throws DockerAccessException, MojoExecutionException {
+    void testDockerBuildArchiveOnly() throws Exception {
+        givenAnImageConfiguration(Boolean.TRUE.toString());
+        final BuildService.BuildContext buildContext = new BuildService.BuildContext.Builder()
+            .mojoParameters(mojoParameters)
+            .build();
+        Files.createFile(tempDir.resolve("docker-build.tar"));
+
+        File dockerArchive = buildService.buildArchive(imageConfig, buildContext, tempDir.toString());
+        Assertions.assertNotNull(dockerArchive);
+    }
+
+    @Test
+    void testDockerBuildArchiveOnlyWithInvalidPath() {
+        givenAnImageConfiguration(Boolean.TRUE.toString());
+        BuildService.BuildContext buildContext = new BuildService.BuildContext.Builder()
+            .mojoParameters(mojoParameters)
+            .build();
+        Assertions.assertThrows(MojoExecutionException.class, () -> buildService.buildArchive(imageConfig, buildContext, "/i/donot/exist"));
+    }
+
+    @Test
+    void testTagImage() throws DockerAccessException, MojoExecutionException {
         // Given
-        givenAnImageConfiguration(false);
+        givenAnImageConfiguration(Boolean.FALSE.toString());
         final BuildService.BuildContext buildContext = new BuildService.BuildContext.Builder()
-                .mojoParameters(mojoParameters)
-                .build();
+            .mojoParameters(mojoParameters)
+            .build();
 
         // When
         whenBuildImage(false, true);
-        buildService.tagImage(imageConfig.getName(), "1.1.0", "quay.io/someuser");
+        buildService.tagImage(imageConfig.getName(), "1.1.0", "quay.io/someuser", imageConfig.getBuildConfiguration().cleanupMode());
 
         // Then
         thenImageIsBuilt();
-        new Verifications() {{
-            docker.tag(imageConfig.getName(), "quay.io/someuser/build-image:1.1.0", true); times = 1;
-        }};
+        verifyTag();
     }
 
-    private void givenAnImageConfiguration(Boolean cleanup) {
+    @Test
+    void tagImage_whenForceFalseAndDanglingImagesTagsPresent_thenImageNotRemoved() throws DockerAccessException, MojoExecutionException {
+        // Given
+        givenAnImageConfiguration(CleanupMode.REMOVE.toParameter());
+        givenImageIds(OLD_IMAGE_ID, NEW_IMAGE_ID);
+        givenImageWithIdBeforeAndAfterTag("quay.io/someuser/build-image:1.1.0", "oldimage", "newimage");
+        givenImageTags("oldimage", Arrays.asList("t1", "t2"));
+
+        // When
+        whenBuildImage(true, true);
+        buildService.tagImage(imageConfig.getName(), "1.1.0", "quay.io/someuser", imageConfig.getBuildConfiguration().cleanupMode());
+
+        // Then
+        thenImageIsBuilt();
+        verifyTag();
+        verifyRemove(OLD_IMAGE_ID);
+    }
+
+    private void verifyTag() throws DockerAccessException {
+        Mockito.verify(docker).tag(imageConfig.getName(), "quay.io/someuser/build-image:1.1.0", true);
+    }
+
+    private boolean verifyRemove(String oldimage) throws DockerAccessException {
+        return Mockito.verify(docker).removeImage(Mockito.eq(oldimage), Mockito.anyBoolean());
+    }
+
+    @Test
+    void tagImage_whenForceFalseAndNoDanglingTags_thenImageRemoved() throws DockerAccessException, MojoExecutionException {
+        // Given
+        givenAnImageConfiguration(CleanupMode.REMOVE.toParameter());
+        givenImageIds(OLD_IMAGE_ID, NEW_IMAGE_ID);
+        givenImageWithIdBeforeAndAfterTag("quay.io/someuser/build-image:1.1.0", "oldimage", "newimage");
+        givenImageTags("oldimage", Collections.emptyList());
+
+        // When
+        whenBuildImage(true, true);
+        buildService.tagImage(imageConfig.getName(), "1.1.0", "quay.io/someuser", imageConfig.getBuildConfiguration().cleanupMode());
+
+        // Then
+        thenImageIsBuilt();
+        verifyTag();
+        verifyRemove("oldimage");
+    }
+
+    private void givenAnImageConfiguration(String cleanup) {
         BuildImageConfiguration buildConfig = new BuildImageConfiguration.Builder()
-                .cleanup(cleanup.toString())
-                .build();
+            .cleanup(cleanup)
+            .build();
 
         imageConfig = new ImageConfiguration.Builder()
-                .name("build-image")
-                .alias("build-alias")
-                .buildConfig(buildConfig)
-                .build();
+            .name("build-image")
+            .alias("build-alias")
+            .buildConfig(buildConfig)
+            .build();
     }
 
     private void givenImageIds(final String oldImageId, final String newImageId) throws DockerAccessException {
         this.oldImageId = oldImageId;
-        new Expectations() {{
-            queryService.getImageId(imageConfig.getName()); result = new String[] { oldImageId, newImageId };
-        }};
+        Mockito.doReturn(oldImageId, newImageId).when(queryService).getImageId(imageConfig.getName());
+    }
+
+    private void givenImageWithIdBeforeAndAfterTag(final String name, final String oldImageId, final String newImageId) throws DockerAccessException {
+        Mockito.doReturn(oldImageId, newImageId).when(queryService).getImageId(name);
+    }
+
+    private void givenImageTags(final String name, List<String> imageTags) throws DockerAccessException {
+        Mockito.doReturn(imageTags).when(docker).getImageTags(name);
     }
 
     private void thenImageIsBuilt() throws DockerAccessException {
-        final File dockerBuildTar = new File("docker-build.tar");
-        new Verifications() {{
-            docker.buildImage(imageConfig.getName(),
-                              dockerBuildTar,
-                              (BuildOptions) any);
-        }};
+        final File dockerBuildTar = tempDir.resolve("docker-build.tar").toFile();
+        Mockito.verify(docker)
+            .buildImage(Mockito.eq(imageConfig.getName()), Mockito.eq(dockerBuildTar), Mockito.any(BuildOptions.class));
     }
 
-    private void thenOldImageIsNotRemoved() throws DockerAccessException {
-        new FullVerifications(docker) {{
-
-        }};
+    private void thenOldImageIsNotRemoved() {
     }
 
     private void thenOldImageIsRemoved() throws DockerAccessException {
-        new Verifications() {{
-            docker.removeImage(oldImageId, true);
-        }};
+        Mockito.verify(docker).removeImage(oldImageId, true);
     }
 
     private void whenBuildImage(boolean cleanup, boolean nocache) throws DockerAccessException, MojoExecutionException {
-        new Expectations() {{
-            docker.buildImage(withEqual(imageConfig.getName()), (File) any, (BuildOptions) any);
-        }};
         if (cleanup) {
-            new Expectations() {{
-                docker.removeImage(withEqual(oldImageId), withEqual(true)); result = true;
-            }};
+            Mockito.doReturn(true).when(docker).removeImage(oldImageId, true);
         }
         final BuildService.BuildContext buildContext = new BuildService.BuildContext.Builder()
-                .mojoParameters(mojoParameters)
-                .build();
+            .mojoParameters(mojoParameters)
+            .build();
         File dockerArchive = buildService.buildArchive(imageConfig, buildContext, "");
 
-        buildService.buildImage(imageConfig, params, nocache, false, Collections.<String, String>emptyMap(), dockerArchive);
-
+        buildService.buildImage(imageConfig, params, nocache, false, Collections.emptyMap(), dockerArchive);
     }
 }

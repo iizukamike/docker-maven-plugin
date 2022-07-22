@@ -1,8 +1,6 @@
 package io.fabric8.maven.docker;
 
 import io.fabric8.maven.docker.access.DockerAccessException;
-import io.fabric8.maven.docker.config.ImageConfiguration;
-import io.fabric8.maven.docker.service.BuildService;
 import io.fabric8.maven.docker.service.JibBuildService;
 import io.fabric8.maven.docker.service.ServiceHub;
 
@@ -25,7 +23,7 @@ public class PushMojo extends AbstractDockerMojo {
     private String pushRegistry;
 
     @Parameter(property = "docker.skip.push", defaultValue = "false")
-    private boolean skipPush;
+    boolean skipPush;
     
     /** 
      * Skip building tags
@@ -41,7 +39,7 @@ public class PushMojo extends AbstractDockerMojo {
      */
     @Override
     public void executeInternal(ServiceHub hub) throws DockerAccessException, MojoExecutionException {
-        if (skipPush) {
+        if (skipPush || shouldSkipPom()) {
             return;
         }
 
@@ -53,7 +51,7 @@ public class PushMojo extends AbstractDockerMojo {
     }
 
     private void executeDockerPush(ServiceHub hub) throws MojoExecutionException, DockerAccessException {
-        hub.getRegistryService().pushImages(getResolvedImages(), retries, getRegistryConfig(pushRegistry), skipTag);
+        hub.getRegistryService().pushImages(createProjectPaths(), getResolvedImages(), retries, getRegistryConfig(pushRegistry), skipTag);
     }
 
     private void executeJibPush(ServiceHub hub) throws MojoExecutionException {

@@ -33,7 +33,6 @@ import org.apache.maven.plugins.assembly.model.Assembly;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.utils.PathTool;
 import org.apache.maven.shared.utils.io.FileUtils;
-import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.archiver.manager.ArchiverManager;
 import org.codehaus.plexus.archiver.manager.NoSuchArchiverException;
@@ -46,6 +45,8 @@ import org.codehaus.plexus.archiver.util.DefaultFileSet;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
+
+import javax.annotation.Nonnull;
 
 /**
  * Tool for creating a docker image tar ball including a Dockerfile for building
@@ -88,9 +89,21 @@ public class DockerAssemblyManager {
      * @throws MojoExecutionException if an error occurs during extracting.
      */
     public void extractDockerTarArchive(File archiveFile, File destinationDirectory) throws MojoExecutionException {
+        UntarCompressionMethod untarMethod = ArchiveCompression.fromFileName(archiveFile.getName()).getUnTarCompressionMethod();
+        extractDockerTarArchive(archiveFile, destinationDirectory, untarMethod);
+    }
+
+    /**
+     * Extract a docker tar archive into the given directory.
+     *
+     * @param archiveFile a tar archive to extract
+     * @param destinationDirectory directory where to place extracted content
+     * @throws MojoExecutionException if an error occurs during extracting.
+     */
+    public void extractDockerTarArchive(File archiveFile, File destinationDirectory, UntarCompressionMethod method) throws MojoExecutionException {
         try {
             TarUnArchiver unArchiver = (TarUnArchiver) archiverManager.getUnArchiver(TAR_ARCHIVER_TYPE);
-            unArchiver.setCompression(UntarCompressionMethod.NONE);
+            unArchiver.setCompression(method);
             unArchiver.setSourceFile(archiveFile);
             unArchiver.setDestDirectory(destinationDirectory);
             unArchiver.extract();
@@ -133,7 +146,7 @@ public class DockerAssemblyManager {
             throws MojoExecutionException {
 
         final BuildDirs buildDirs = createBuildDirs(imageName, params);
-        final List<AssemblyConfiguration> assemblyConfigurations = buildConfig.getAssemblyConfigurations();
+        final List<AssemblyConfiguration> assemblyConfigurations = buildConfig.getAllAssemblyConfigurations();
 
         final List<ArchiverCustomizer> archiveCustomizers = new ArrayList<>();
 
@@ -168,7 +181,7 @@ public class DockerAssemblyManager {
                         // directly to docker.tar (as the output builddir is not picked up in archive mode)
                         if (isArchive(assemblyConfigurations)) {
                             String name = dockerFile.getName();
-                            archiver.addFile(new File(buildDirs.getOutputDirectory(), name), name);
+                            archiver.addFile(new File(buildDirs.getOutputDirectory(), name).getAbsoluteFile(), name);
                         }
 
                         archiver.addFileSet(fileSet);
@@ -228,7 +241,7 @@ public class DockerAssemblyManager {
 
     // visible for testing
     void verifyGivenDockerfile(File dockerFile, BuildImageConfiguration buildConfig, FixedStringSearchInterpolator interpolator, Logger log) throws IOException {
-        List<AssemblyConfiguration> assemblyConfigs = buildConfig.getAssemblyConfigurations();
+        List<AssemblyConfiguration> assemblyConfigs = buildConfig.getAllAssemblyConfigurations();
         if (assemblyConfigs.isEmpty()) {
             return;
         }
@@ -273,7 +286,7 @@ public class DockerAssemblyManager {
      * Extract all files with a tracking archiver. These can be used to track changes in the filesystem and triggering
      * a rebuild of the image if needed ('docker:watch')
      */
-    public AssemblyFiles getAssemblyFiles(String name, AssemblyConfiguration assemblyConfig, MojoParameters mojoParams, Logger log)
+    public AssemblyFiles getAssemblyFiles(@Nonnull String name, AssemblyConfiguration assemblyConfig, MojoParameters mojoParams, Logger log)
             throws InvalidAssemblerConfigurationException, ArchiveCreationException, AssemblyFormattingException, MojoExecutionException {
 
         BuildDirs buildDirs = createBuildDirs(name, mojoParams);
@@ -293,7 +306,7 @@ public class DockerAssemblyManager {
         }
     }
 
-    private BuildDirs createBuildDirs(String imageName, MojoParameters params) {
+    private BuildDirs createBuildDirs(@Nonnull String imageName, MojoParameters params) {
         BuildDirs buildDirs = new BuildDirs(imageName, params);
         buildDirs.createDirs();
         return buildDirs;

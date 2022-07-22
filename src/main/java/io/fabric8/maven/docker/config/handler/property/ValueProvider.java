@@ -133,9 +133,9 @@ public class ValueProvider {
     }
 
     /**
-     * Helper base class for picking values out of the the Properties class and/or config value.
+     * Helper base class for picking values out of the Properties class and/or config value.
      *
-     * If there is only one source defined, we only use that. If multiple source are defined, the first one get's priority.
+     * If there is only one source defined, we only use that. If multiple source are defined, the first one has priority.
      * If more than one value is specified, a merge policy as specified for the ConfigKey
      */
     private abstract class ValueExtractor<T> {
@@ -312,7 +312,7 @@ public class ValueProvider {
             for(int i = values.size() - 1; i >= 0; i--) {
                 Map<String, String> value = values.get(i);
                 if(merged == null) {
-                    merged = value;
+                    merged = new HashMap<>(value);
                 } else {
                     merged.putAll(value);
                 }

@@ -73,14 +73,29 @@ when a `docker.from` or a `docker.fromExt` is set.
 | *docker.buildArg.VARIABLE*
 | Set a ARG to be available during build of image. *Note*: this is handled separately from external configuration, and is always available. See <<property-buildargs,Build Args>> for more details.
 
+| *docker.buildx.builderName*
+| Name of buildx builder
+
+| *docker.buildx.cache*
+| Location of image cache
+
+| *docker.buildx.configFile*
+| Configuration file for buildx builder
+
+| *docker.buildx.platform*
+| Platform for multi-architecture image
+
 | *docker.capAdd.idx*
 | List of kernel capabilities to add to the container. See <<list-properties>>.
 
 | *docker.capDrop.idx*
 | List of kernel capabilities to remove from the container. See <<list-properties>>.
 
+| *docker.sysctls.KEY*
+| Sets a namespaced kernel parameter (https://docs.docker.com/engine/reference/commandline/run/#configure-namespaced-kernel-parameters-sysctls-at-runtime[sysctl]) in the container.
+
 | *docker.cleanup*
-| Cleanup dangling (untagged) images after each build (including any containers created from them). Default is `try` (which wont fail the build if removing fails), other possible values are `none` (no cleanup) or `remove` (remove but fail if unsuccessful)
+| Cleanup dangling (untagged) images after each build, including any stopped containers created from them. Also cleanup dangling images as a result of image tagging, auto-pulling a base image, or auto-pulling a cacheFrom image. Default is `try`, which tries to remove the old image, but doesn't fail the build if this is not possible (e.g. because the image is still used by a running container). Other possible values are `remove`, if you want to fail the build, or `none`, to skip cleanup altogether.
 
 | *docker.cmd*
 | Command to execute. This is used both when running a container and as default command when creating an image.

@@ -13,13 +13,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import javax.annotation.Nonnull;
+
+import org.apache.maven.plugins.annotations.Parameter;
 
 import io.fabric8.maven.docker.util.DeepCopy;
 import io.fabric8.maven.docker.util.EnvUtil;
 import io.fabric8.maven.docker.util.Logger;
 import io.fabric8.maven.docker.util.MojoParameters;
-import org.apache.maven.plugins.annotations.Parameter;
 
 /**
  * @author roland
@@ -146,6 +148,9 @@ public class BuildImageConfiguration implements Serializable {
     private List<String> tags;
 
     @Parameter
+    private BuildXConfiguration buildx;
+
+    @Parameter
     private Map<String, String> env;
 
     @Parameter
@@ -190,6 +195,17 @@ public class BuildImageConfiguration implements Serializable {
 
     @Parameter
     private Map<String,String> buildOptions;
+
+    /**
+     * Map specifying the create image options to provide to the docker daemon when pulling or importing an image.
+     *
+     * <p> These options map to the ones listed as query parameters in the Docker Remote API and are restricted to
+     * simple options (e.g.: fromImage, fromSrc, platform).
+     *
+     * @see <a href="https://docs.docker.com/engine/api/v1.41/#operation/ImageCreate">Docker Engine API v1.41</a>
+     */
+    @Parameter
+    private Map<String, String> createImageOptions;
 
     // Path to Dockerfile to use, initialized lazily ....
     private File dockerFileFile, dockerArchiveFile;
@@ -281,16 +297,21 @@ public class BuildImageConfiguration implements Serializable {
     }
 
     /**
-     * @deprecated Use {@link #getAssemblyConfigurations()} instead.
+     * @deprecated Use {@link #getAllAssemblyConfigurations()} instead.
      */
     @Deprecated
     public AssemblyConfiguration getAssemblyConfiguration() {
         return assembly;
     }
 
+
+    /**
+     * Use {@link #getAllAssemblyConfigurations()} unless you specifically want the configuration defined only by <code>assemblies</code>.
+     */
     @Nonnull
-    public List<AssemblyConfiguration> getAssemblyConfigurations() {
+    public List<AssemblyConfiguration> getAssembliesConfiguration() {
         final List<AssemblyConfiguration> assemblyConfigurations = new ArrayList<>();
+
         if (assemblies != null) {
             for (AssemblyConfiguration config : assemblies) {
                 if (config != null) {
@@ -298,9 +319,18 @@ public class BuildImageConfiguration implements Serializable {
                 }
             }
         }
+
+        return assemblyConfigurations;
+    }
+
+    @Nonnull
+    public List<AssemblyConfiguration> getAllAssemblyConfigurations() {
+        final List<AssemblyConfiguration> assemblyConfigurations = getAssembliesConfiguration();
+
         if (assembly != null) {
             assemblyConfigurations.add(assembly);
         }
+
         return assemblyConfigurations;
     }
 
@@ -405,6 +435,10 @@ public class BuildImageConfiguration implements Serializable {
         return buildOptions;
     }
 
+    public Map<String, String> getCreateImageOptions() {
+        return createImageOptions;
+    }
+
     public Arguments getEntryPoint() {
         return entryPoint;
     }
@@ -430,6 +464,14 @@ public class BuildImageConfiguration implements Serializable {
         return args;
     }
 
+    public BuildXConfiguration getBuildX() {
+        return buildx;
+    }
+
+    public boolean isBuildX() {
+        return buildx!=null && buildx.isBuildX();
+    }
+
     public File getAbsoluteContextDirPath(MojoParameters mojoParams) {
         return EnvUtil.prepareAbsoluteSourceDirPath(mojoParams, getContextDir().getPath());
     }
@@ -440,6 +482,14 @@ public class BuildImageConfiguration implements Serializable {
 
     public File getAbsoluteDockerTarPath(MojoParameters mojoParams) {
         return EnvUtil.prepareAbsoluteSourceDirPath(mojoParams, getDockerArchive().getPath());
+    }
+
+    public String getDockerfileName() {
+        if (isDockerFileMode()) {
+            return getDockerFile().getName();
+        } else {
+            return null;
+        }
     }
 
     public void initTags(ConfigHelper.NameFormatter nameFormatter) {
@@ -586,6 +636,11 @@ public class BuildImageConfiguration implements Serializable {
             return this;
         }
 
+        public Builder buildx(BuildXConfiguration buildx) {
+            config.buildx = buildx;
+            return this;
+        }
+
         public Builder env(Map<String, String> env) {
             config.env = env;
             return this;
@@ -669,6 +724,11 @@ public class BuildImageConfiguration implements Serializable {
             return this;
         }
 
+        public Builder createImageOptions(Map<String, String> createImageOptions) {
+            config.createImageOptions = createImageOptions;
+            return this;
+        }
+
         public BuildImageConfiguration build() {
             return config;
         }
@@ -718,7 +778,7 @@ public class BuildImageConfiguration implements Serializable {
     }
 
     private void ensureUniqueAssemblyNames(Logger log) {
-        List<AssemblyConfiguration> assemblyConfigurations = getAssemblyConfigurations();
+        List<AssemblyConfiguration> assemblyConfigurations = getAllAssemblyConfigurations();
         Set<String> assemblyNames = new HashSet<>();
         for (AssemblyConfiguration config : assemblyConfigurations) {
             String assemblyName = config.getName();
@@ -753,24 +813,19 @@ public class BuildImageConfiguration implements Serializable {
             File dFile = new File(dockerFile);
             if (dockerFileDir == null && contextDir == null) {
                 return dFile;
-            } else {
-                if(contextDir != null) {
-                    if (dFile.isAbsolute()) {
-                        return dFile;
-                    }
-                    return new File(contextDir, dockerFile);
-                }
-
-                if (dockerFileDir != null) {
-                    if (dFile.isAbsolute()) {
-                        throw new IllegalArgumentException("<dockerFile> can not be absolute path if <dockerFileDir> also set.");
-                    }
-                    log.warn("dockerFileDir parameter is deprecated, please migrate to contextDir");
-                    return new File(dockerFileDir, dockerFile);
-                }
             }
+            if(contextDir != null) {
+                if (dFile.isAbsolute()) {
+                    return dFile;
+                }
+                return new File(contextDir, dockerFile);
+            }
+            if (dFile.isAbsolute()) {
+                throw new IllegalArgumentException("<dockerFile> can not be absolute path if <dockerFileDir> also set.");
+            }
+            log.warn("dockerFileDir parameter is deprecated, please migrate to contextDir");
+            return new File(dockerFileDir, dockerFile);
         }
-
 
         if (contextDir != null) {
             return new File(contextDir, "Dockerfile");
@@ -783,7 +838,7 @@ public class BuildImageConfiguration implements Serializable {
         // TODO: Remove the following deprecated handling section
         if (dockerArchive == null) {
             Optional<String> deprecatedDockerFileDir =
-                    getAssemblyConfigurations().stream()
+                    getAllAssemblyConfigurations().stream()
                             .map(AssemblyConfiguration::getDockerFileDir)
                             .filter(Objects::nonNull)
                             .findFirst();

@@ -117,10 +117,13 @@ public class AuthConfigFactory {
         AuthConfig ret = createStandardAuthConfig(isPush, authConfig, settings, user, registry);
         if (ret != null) {
             if (registry == null || skipExtendedAuth) {
+                ret.setRegistry(registry);
                 return ret;
             }
             try {
-                return extendedAuthentication(ret, registry);
+                ret= extendedAuthentication(ret, registry);
+                ret.setRegistry(registry);
+                return ret;
             } catch (IOException e) {
                 throw new MojoExecutionException(e.getMessage(), e);
             }
@@ -129,6 +132,7 @@ public class AuthConfigFactory {
         // Finally check ~/.docker/config.json
         ret = getAuthConfigFromDockerConfig(registry);
         if (ret != null) {
+            ret.setRegistry(registry);
             log.debug("AuthConfig: credentials from ~/.docker/config.json");
             return ret;
         }
@@ -663,7 +667,9 @@ public class AuthConfigFactory {
             // Done by reflection since I have classloader issues otherwise
             Object secDispatcher = container.lookup(SecDispatcher.ROLE, "maven");
             Method method = secDispatcher.getClass().getMethod("decrypt",String.class);
-            return (String) method.invoke(secDispatcher,password);
+            synchronized(secDispatcher) {
+                return (String) method.invoke(secDispatcher, password);
+            }
         } catch (ComponentLookupException e) {
             throw new MojoExecutionException("Error looking security dispatcher",e);
         } catch (ReflectiveOperationException e) {

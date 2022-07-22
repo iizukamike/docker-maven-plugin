@@ -1,6 +1,31 @@
 # ChangeLog
+* **0.41.0-SNAPSHOT** :
 
-* **0.39-SNAPSHOT** :
+* **0.40.1** (2022-06-11):
+  - buildx does not work when specifying Dockerfile location ([1562](https://github.com/fabric8io/docker-maven-plugin/issues/1562)) @chonton
+  - Use buildx, set tag to current version fails if it contains `-SNAPSHOT` ([1566](https://github.com/fabric8io/docker-maven-plugin/issues/1566)) @chonton
+
+* **0.40.0** (2022-05-29):
+  - `docker:stop` should respect docker.skip even when `docker.executeStopOnVMShutdown` is set to `true` ([1561](https://github.com/fabric8io/docker-maven-plugin/pull/1561)) @doyleyoung
+  - Prevent concurrent access to secDispatcher during password decryption ([1533](https://github.com/fabric8io/docker-maven-plugin/pull/1533)) @joserebelo
+  - Support for `docker run --sysctl` parameters ([1530](https://github.com/fabric8io/docker-maven-plugin/issues/1530)) @jpraet
+  - Migrate to JUnit5 and Mockito for testing ([1550](https://github.com/fabric8io/docker-maven-plugin/pull/1550)) @chonton
+  - Multi-architecture images using buildx ([1502](https://github.com/fabric8io/docker-maven-plugin/issues/1502)) @chonton
+  - Add missing dash to buildx `--build-arg` ([1559](https://github.com/fabric8io/docker-maven-plugin/pull/1559)) @elektro-wolle
+
+* **0.39.1** (2022-02-27):
+  - determineFinalArgValue respect default value if key exists but value is null ([1528](https://github.com/fabric8io/docker-maven-plugin/issues/1528)) @twendelmuth
+
+* **0.39.0** (2022-02-06):
+  - `skipPom` is ignored by "push" goal ([1482](https://github.com/fabric8io/docker-maven-plugin/issues/1482)) @rohanKanojia
+  - Cleanup dangling images as a result of image tagging, auto-pulling a base image, or auto-pulling a cacheFrom image ([#1513](https://github.com/fabric8io/docker-maven-plugin/pull/1513)) @rkhmelichek
+  - Fix logic bug to remove dangling images in BuildService ([1522](https://github.com/fabric8io/docker-maven-plugin/pull/1522)) @rkhmelichek
+  - Enable Create Image (pull) HTTP API option ([#1516](https://github.com/fabric8io/docker-maven-plugin/issues/1516)) @rohanKanojia
+
+* **0.38.1** (2021-12-18):
+  - Update to jnr-unixsocket 0.38.14 to solve UnsatisfiedLinkError on Apple M1 ([#1257](https://github.com/fabric8io/docker-maven-plugin/pull/1507)) @henningn
+  - Revert "Only push the `latest` tag if no other tags where specified in jib mode. This can break your build, if you rely on the automatic `latest` tag." ([#1510](https://github.com/fabric8io/docker-maven-plugin/pull/1510)) @Postremus
+  - Revert "Only push the `latest` tag if no other tags where specified in docker mode. This can break your build, if you rely on the automatic `latest` tag." ([#1509](https://github.com/fabric8io/docker-maven-plugin/pull/1509)) @Postremus
 
 * **0.38.0** (2021-11-09):
   - Allow replacement in tags. Added a new replacement `%T` which always adds a timestamp. ([#1491](https://github.com/fabric8io/docker-maven-plugin/pull/1491))

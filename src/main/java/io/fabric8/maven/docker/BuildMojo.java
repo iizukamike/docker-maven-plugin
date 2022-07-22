@@ -10,13 +10,18 @@ import java.net.URL;
 import java.util.Date;
 import java.util.Enumeration;
 
+import io.fabric8.maven.docker.access.AuthConfig;
 import io.fabric8.maven.docker.access.DockerAccessException;
+import io.fabric8.maven.docker.assembly.BuildDirs;
 import io.fabric8.maven.docker.config.BuildImageConfiguration;
 import io.fabric8.maven.docker.config.ImageConfiguration;
 import io.fabric8.maven.docker.service.BuildService;
+import io.fabric8.maven.docker.service.BuildXService;
 import io.fabric8.maven.docker.service.ImagePullManager;
 import io.fabric8.maven.docker.service.JibBuildService;
+import io.fabric8.maven.docker.service.RegistryService;
 import io.fabric8.maven.docker.service.ServiceHub;
+import io.fabric8.maven.docker.util.ImageName;
 import io.fabric8.maven.docker.util.Logger;
 import io.fabric8.maven.docker.util.EnvUtil;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -39,14 +44,8 @@ public class BuildMojo extends AbstractBuildSupportMojo {
     @Parameter(property = "docker.skip.build", defaultValue = "false")
     protected boolean skipBuild;
 
-    @Parameter(property = "docker.skip.pom", defaultValue = "false")
-    protected boolean skipPom;
-
     @Parameter(property = "docker.name", defaultValue = "")
     protected String name;
-
-    @Parameter(defaultValue = "${project.packaging}", required = true)
-    protected String packaging;
 
     /**
      * Skip Sending created tarball to docker daemon
@@ -89,7 +88,7 @@ public class BuildMojo extends AbstractBuildSupportMojo {
         if (Boolean.TRUE.equals(jib)) {
             proceedWithJibBuild(hub, buildContext, imageConfig);
         } else {
-            proceedWithDockerBuild(hub.getBuildService(), buildContext, imageConfig, pullManager);
+            proceedWithDockerBuild(hub, buildContext, imageConfig, pullManager);
         }
     }
 
@@ -98,14 +97,34 @@ public class BuildMojo extends AbstractBuildSupportMojo {
         new JibBuildService(hub, createMojoParameters(), log).build(jibImageFormat, imageConfig, buildContext.getRegistryConfig());
     }
 
-    private void proceedWithDockerBuild(BuildService buildService, BuildService.BuildContext buildContext, ImageConfiguration imageConfig, ImagePullManager pullManager) throws MojoExecutionException, IOException {
+    private void proceedWithDockerBuild(ServiceHub hub, BuildService.BuildContext buildContext, ImageConfiguration imageConfig, ImagePullManager pullManager)
+        throws MojoExecutionException, IOException {
+        BuildService buildService= hub.getBuildService();
         File buildArchiveFile = buildService.buildArchive(imageConfig, buildContext, resolveBuildArchiveParameter());
         if (Boolean.FALSE.equals(shallBuildArchiveOnly())) {
-            buildService.buildImage(imageConfig, pullManager, buildContext, buildArchiveFile);
+            if (imageConfig.isBuildX()) {
+                hub.getBuildXService().build(createProjectPaths(), imageConfig, getAuthConfig(imageConfig), buildArchiveFile);
+            } else {
+                buildService.buildImage(imageConfig, pullManager, buildContext, buildArchiveFile);
+                if (!skipTag) {
+                    buildService.tagImage(imageConfig);
+                }
+            }
         }
-        if (!skipTag) {
-            buildService.tagImage(imageConfig);
-        }
+    }
+
+
+    private AuthConfig getAuthConfig(ImageConfiguration imageConfig) throws MojoExecutionException {
+        // TODO: refactor similar code in RegistryService#pushImages
+        RegistryService.RegistryConfig registryConfig = getRegistryConfig(pullRegistry);
+
+        ImageName imageName = new ImageName(imageConfig.getName());
+        String configuredRegistry = EnvUtil.firstRegistryOf(
+            imageName.getRegistry(),
+            imageConfig.getRegistry(),
+            registryConfig.getRegistry());
+
+        return registryConfig.createAuthConfig(false, imageName.getUser(), configuredRegistry);
     }
 
     // We ignore an already existing date file and always return the current date
@@ -151,7 +170,7 @@ public class BuildMojo extends AbstractBuildSupportMojo {
         BuildImageConfiguration buildConfig = aImageConfig.getBuildConfiguration();
 
         if (buildConfig != null) {
-            if(buildConfig.skip() || (skipPom && packaging.equalsIgnoreCase("pom"))) {
+            if (buildConfig.skip() || shouldSkipPom()) {
                 log.info("%s : Skipped building", aImageConfig.getDescription());
             } else {
                 buildAndTag(hub, aImageConfig);

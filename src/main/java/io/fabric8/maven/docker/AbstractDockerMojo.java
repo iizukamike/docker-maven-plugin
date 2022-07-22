@@ -37,9 +37,9 @@ import io.fabric8.maven.docker.util.AuthConfigFactory;
 import io.fabric8.maven.docker.util.EnvUtil;
 import io.fabric8.maven.docker.util.GavLabel;
 import io.fabric8.maven.docker.util.ImageNameFormatter;
-import io.fabric8.maven.docker.util.Logger;
 import io.fabric8.maven.docker.util.NamePatternUtil;
 
+import io.fabric8.maven.docker.util.ProjectPaths;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecution;
@@ -207,7 +207,7 @@ public abstract class AbstractDockerMojo extends AbstractMojo implements Context
      * Image configurations configured directly.
      */
     @Parameter
-    private List<ImageConfiguration> images;
+    List<ImageConfiguration> images;
 
     /**
      * Image configurations configured via maps to allow overriding.
@@ -219,12 +219,18 @@ public abstract class AbstractDockerMojo extends AbstractMojo implements Context
     @Parameter
     private DockerMachineConfiguration machine;
 
+    @Parameter(defaultValue = "${project.packaging}", required = true)
+    protected String packaging;
+
+    @Parameter(property = "docker.skip.pom", defaultValue = "false")
+    protected boolean skipPom;
+
     // Images resolved with external image resolvers and hooks for subclass to
     // mangle the image configurations.
-    private List<ImageConfiguration> resolvedImages;
+    List<ImageConfiguration> resolvedImages;
 
     // Handler dealing with authentication credentials
-    private AuthConfigFactory authConfigFactory;
+    AuthConfigFactory authConfigFactory;
 
     protected AnsiLogger log;
 
@@ -312,7 +318,7 @@ public abstract class AbstractDockerMojo extends AbstractMojo implements Context
                 .build();
     }
 
-    protected RegistryService.RegistryConfig getRegistryConfig(String specificRegistry) throws MojoExecutionException {
+    protected RegistryService.RegistryConfig getRegistryConfig(String specificRegistry) {
         return new RegistryService.RegistryConfig.Builder()
                 .settings(settings)
                 .authConfig(authConfig != null ? authConfig.toMap() : null)
@@ -448,7 +454,6 @@ public abstract class AbstractDockerMojo extends AbstractMojo implements Context
     }
 
     // =================================================================================
-
     protected GavLabel getGavLabel() {
         // Label used for this run
         return new GavLabel(project.getGroupId(), project.getArtifactId(), project.getVersion());
@@ -566,13 +571,17 @@ public abstract class AbstractDockerMojo extends AbstractMojo implements Context
                 .collect(Collectors.toList());
     }
 
-    protected void pullImage(QueryService queryService, RegistryService registryService, ImageConfiguration imageConfig,
-            String pullRegistry) throws MojoExecutionException, DockerAccessException {
+    protected void pullImage(RegistryService registryService, ImageConfiguration imageConfig,
+                             String pullRegistry) throws MojoExecutionException, DockerAccessException {
         String imageName = imageConfig.getName();
         RunImageConfiguration runConfiguration = imageConfig.getRunConfiguration();
         ImagePullManager pullManager = getImagePullManager(determinePullPolicy(runConfiguration), autoPull);
         RegistryConfig registryConfig = getRegistryConfig(pullRegistry);
-        registryService.pullImageWithPolicy(imageName, pullManager, registryConfig, queryService.hasImage(imageName));
+        registryService.pullImageWithPolicy(imageName, pullManager, registryConfig, imageConfig.getBuildConfiguration());
+    }
+
+    protected boolean shouldSkipPom() {
+        return skipPom && packaging.equalsIgnoreCase("pom");
     }
 
     private boolean containerMatchesPattern(Container container, Matcher imageNameMatcher, Matcher containerNameMatcher,
@@ -594,5 +603,9 @@ public abstract class AbstractDockerMojo extends AbstractMojo implements Context
 
     private String determinePullPolicy(RunImageConfiguration runConfig) {
         return runConfig.getImagePullPolicy() != null ? runConfig.getImagePullPolicy() : imagePullPolicy;
+    }
+
+    protected ProjectPaths createProjectPaths() {
+        return new ProjectPaths(project.getBasedir(), outputDirectory);
     }
 }

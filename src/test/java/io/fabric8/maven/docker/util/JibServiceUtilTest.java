@@ -1,69 +1,51 @@
 package io.fabric8.maven.docker.util;
 
-import com.google.cloud.tools.jib.api.CacheDirectoryCreationException;
-import com.google.cloud.tools.jib.api.Containerizer;
-import com.google.cloud.tools.jib.api.Credential;
-import com.google.cloud.tools.jib.api.Jib;
 import com.google.cloud.tools.jib.api.JibContainerBuilder;
-import com.google.cloud.tools.jib.api.RegistryException;
-import com.google.cloud.tools.jib.api.TarImage;
 import com.google.cloud.tools.jib.api.buildplan.AbsoluteUnixPath;
 import com.google.cloud.tools.jib.api.buildplan.FileEntriesLayer;
 import com.google.cloud.tools.jib.api.buildplan.ImageFormat;
 import com.google.cloud.tools.jib.api.buildplan.Port;
-
-import io.fabric8.maven.docker.UnixOnlyTests;
 import io.fabric8.maven.docker.config.Arguments;
 import io.fabric8.maven.docker.config.AssemblyConfiguration;
 import io.fabric8.maven.docker.config.BuildImageConfiguration;
 import io.fabric8.maven.docker.config.ImageConfiguration;
-import mockit.Capturing;
-import mockit.Deencapsulation;
-import mockit.Expectations;
-import mockit.Mock;
-import mockit.MockUp;
-import mockit.Mocked;
-import mockit.Verifications;
 import org.apache.maven.plugins.assembly.model.Assembly;
 import org.apache.maven.plugins.assembly.model.FileItem;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 import static io.fabric8.maven.docker.util.JibServiceUtil.BUSYBOX;
 import static io.fabric8.maven.docker.util.JibServiceUtil.containerFromImageConfiguration;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.condition.OS.LINUX;
+import static org.junit.jupiter.api.condition.OS.MAC;
 
-public class JibServiceUtilTest {
-    @Mocked
-    private Logger logger;
-
-    @Capturing
-    JibContainerBuilder jibContainerBuilder;
-
+@ExtendWith(MockitoExtension.class)
+class JibServiceUtilTest {
     @Test
-    public void testGetBaseImageWithNullBuildConfig() {
-        assertEquals(BUSYBOX, JibServiceUtil.getBaseImage(new ImageConfiguration.Builder().build()));
+    void testGetBaseImageWithNullBuildConfig() {
+        Assertions.assertEquals(BUSYBOX, JibServiceUtil.getBaseImage(new ImageConfiguration.Builder().build()));
     }
 
     @Test
-    public void testGetBaseImageWithNotNullBuildConfig() {
-        assertEquals("quay.io/jkubeio/jkube-test-image:0.0.1", JibServiceUtil.getBaseImage(new ImageConfiguration.Builder()
+    void testGetBaseImageWithNotNullBuildConfig() {
+        Assertions.assertEquals("quay.io/jkubeio/jkube-test-image:0.0.1", JibServiceUtil.getBaseImage(new ImageConfiguration.Builder()
                 .buildConfig(new BuildImageConfiguration.Builder()
                         .from("quay.io/jkubeio/jkube-test-image:0.0.1")
                         .build())
@@ -71,76 +53,26 @@ public class JibServiceUtilTest {
     }
 
     @Test
-    public void testPushedImageTags() {
-        File buildArchive = new File("docker-build.tar");
-
-        ImageConfiguration imageWithoutTags = new ImageConfiguration.Builder()
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .from("quay.io/jkubeio/jkube-test-image:0.0.1")
-                        .build())
-                .name("without-tags")
-                .build();
-
-        ImageConfiguration imageWithTags = new ImageConfiguration.Builder()
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .from("quay.io/jkubeio/jkube-test-image:0.0.1")
-                        .tags(Arrays.asList("foo", "bar"))
-                        .build())
-                .name("with-tags")
-                .build();
-
-        List<String> imageNames = new ArrayList<>();
-        new MockUp<JibServiceUtil>() {
-            @Mock
-            public void pushImage(TarImage baseImage, String targetImageName, Credential credential, Logger logger) {
-                imageNames.add(targetImageName);
-            }
-        };
-
-        JibServiceUtil.jibPush(imageWithoutTags, null, buildArchive, false, logger);
-        JibServiceUtil.jibPush(imageWithTags, null, buildArchive, true, logger);
-        JibServiceUtil.jibPush(imageWithTags, null, buildArchive, false, logger);
-
-        // latest tag is used, because no other tags are specified
-        assertEquals(imageWithoutTags.getName()+":latest", imageNames.get(0));
-        // latest tag is used, because skipTag = true
-        assertEquals(imageWithTags.getName()+":latest", imageNames.get(1));
-
-        // skipTag = false => both specified tags have to be pushed
-        assertEquals(imageWithTags.getName()+":foo", imageNames.get(2));
-        assertEquals(imageWithTags.getName()+":bar", imageNames.get(3));
-    }
-
-    @Test
-    public void testContainerFromImageConfiguration(@Mocked JibContainerBuilder containerBuilder) throws Exception {
+    @Disabled("Cannot mock static methods, JibServiceUtil needs to be refactored as non-static and/or expose methods to spy on")
+    void testContainerFromImageConfiguration() throws Exception {
         // Given
         ImageConfiguration imageConfiguration = getSampleImageConfiguration();
         // When
-        JibContainerBuilder jibContainerBuilder = containerFromImageConfiguration(ImageFormat.Docker.name(), imageConfiguration, null);
+        JibContainerBuilder jcb = containerFromImageConfiguration(ImageFormat.Docker.name(), imageConfiguration, null);
+        JibContainerBuilder jibContainerBuilder= Mockito.spy(jcb);
         // Then
-        // @formatter:off
-        new Verifications() {{
-            jibContainerBuilder.addLabel("foo", "bar");
-            times = 1;
-            jibContainerBuilder.setEntrypoint(Arrays.asList("java", "-jar", "foo.jar"));
-            times = 1;
-            jibContainerBuilder.setExposedPorts(new HashSet<>(Collections.singletonList(Port.tcp(8080))));
-            times = 1;
-            jibContainerBuilder.setUser("root");
-            times = 1;
-            jibContainerBuilder.setWorkingDirectory(AbsoluteUnixPath.get("/home/foo"));
-            times = 1;
-            jibContainerBuilder.setVolumes(new HashSet<>(Collections.singletonList(AbsoluteUnixPath.get("/mnt/volume1"))));
-            times = 1;
-            jibContainerBuilder.setFormat(ImageFormat.Docker);
-            times = 1;
-        }};
-        // @formatter:on
+        Mockito.verify(jibContainerBuilder).addLabel("foo", "bar");
+        Mockito.verify(jibContainerBuilder).setEntrypoint(Arrays.asList("java", "-jar", "foo.jar"));
+        Mockito.verify(jibContainerBuilder).setExposedPorts(new HashSet<>(Collections.singletonList(Port.tcp(8080))));
+        Mockito.verify(jibContainerBuilder).setUser("root");
+        Mockito.verify(jibContainerBuilder).setWorkingDirectory(AbsoluteUnixPath.get("/home/foo"));
+        Mockito.verify(jibContainerBuilder).setVolumes(new HashSet<>(Collections.singletonList(AbsoluteUnixPath.get("/mnt/volume1"))));
+        Mockito.verify(jibContainerBuilder).setFormat(ImageFormat.Docker);
     }
 
     @Test
-    @Category(UnixOnlyTests.class)
-    public void testCopyToContainer(@Mocked JibContainerBuilder containerBuilder) throws IOException {
+    @EnabledOnOs({ LINUX, MAC })
+    void testCopyToContainer(@Mock JibContainerBuilder containerBuilder) throws IOException {
         // Given
         File temporaryDirectory = Files.createTempDirectory("jib-test").toFile();
         File temporaryFile = new File(temporaryDirectory, "foo.txt");
@@ -151,34 +83,48 @@ public class JibServiceUtilTest {
         JibServiceUtil.copyToContainer(containerBuilder, temporaryDirectory, tmpRoot, Collections.emptyMap());
 
         // Then
-        assertTrue(wasNewFileCreated);
-        new Verifications() {{
-            FileEntriesLayer fileEntriesLayer;
-            containerBuilder.addFileEntriesLayer(fileEntriesLayer = withCapture());
+        Assertions.assertTrue(wasNewFileCreated);
+        ArgumentCaptor<FileEntriesLayer> fileEntriesLayerCaptor = ArgumentCaptor.forClass(FileEntriesLayer.class);
 
-            assertNotNull(fileEntriesLayer);
-            assertEquals(1, fileEntriesLayer.getEntries().size());
-            assertEquals(temporaryFile.toPath(), fileEntriesLayer.getEntries().get(0).getSourceFile());
-            assertEquals(AbsoluteUnixPath.fromPath(Paths.get(temporaryFile.getAbsolutePath().substring(tmpRoot.length()))),
-                    fileEntriesLayer.getEntries().get(0).getExtractionPath());
-        }};
+        Mockito.verify(containerBuilder).addFileEntriesLayer(fileEntriesLayerCaptor.capture());
+        FileEntriesLayer fileEntriesLayer= fileEntriesLayerCaptor.getValue();
+
+        Assertions.assertNotNull(fileEntriesLayer);
+        Assertions.assertEquals(1, fileEntriesLayer.getEntries().size());
+        Assertions.assertEquals(temporaryFile.toPath(), fileEntriesLayer.getEntries().get(0).getSourceFile());
+        Assertions.assertEquals(AbsoluteUnixPath.fromPath(Paths.get(temporaryFile.getAbsolutePath().substring(tmpRoot.length()))),
+                fileEntriesLayer.getEntries().get(0).getExtractionPath());
     }
 
     @Test
-    public void testGetFullImageNameWithDefaultTag() {
-        assertEquals("test/test-project:latest", JibServiceUtil.getFullImageName(getSampleImageConfiguration(), null));
+    void testAppendOriginalImageNameTagIfApplicable() {
+        // Given
+        List<String> imageTagList = Arrays.asList("0.0.1", "0.0.1-SNAPSHOT");
+
+        // When
+        Set<String> result = JibServiceUtil.getAllImageTags(imageTagList, "test-project");
+
+        // Then
+        Assertions.assertNotNull(result);
+        Assertions.assertEquals(3, result.size());
+        Assertions.assertArrayEquals(new String[]{"0.0.1-SNAPSHOT", "0.0.1", "latest"}, result.toArray());
     }
 
     @Test
-    public void testGetFullImageNameWithProvidedTag() {
-        assertEquals("test/test-project:0.0.1", JibServiceUtil.getFullImageName(getSampleImageConfiguration(), "0.0.1"));
+    void testGetFullImageNameWithDefaultTag() {
+        Assertions.assertEquals("test/test-project:latest", JibServiceUtil.getFullImageName(getSampleImageConfiguration(), null));
     }
 
     @Test
-    public void testGetImageFormat() {
-        assertEquals(ImageFormat.Docker, JibServiceUtil.getImageFormat("Docker"));
-        assertEquals(ImageFormat.OCI, JibServiceUtil.getImageFormat("OCI"));
-        assertEquals(ImageFormat.OCI, JibServiceUtil.getImageFormat("oci"));
+    void testGetFullImageNameWithProvidedTag() {
+        Assertions.assertEquals("test/test-project:0.0.1", JibServiceUtil.getFullImageName(getSampleImageConfiguration(), "0.0.1"));
+    }
+
+    @Test
+    void testGetImageFormat() {
+        Assertions.assertEquals(ImageFormat.Docker, JibServiceUtil.getImageFormat("Docker"));
+        Assertions.assertEquals(ImageFormat.OCI, JibServiceUtil.getImageFormat("OCI"));
+        Assertions.assertEquals(ImageFormat.OCI, JibServiceUtil.getImageFormat("oci"));
     }
 
     private ImageConfiguration getSampleImageConfiguration() {

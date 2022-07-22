@@ -1,0 +1,98 @@
+package io.fabric8.maven.docker.config;
+
+import io.fabric8.maven.docker.util.EnvUtil;
+import org.apache.maven.plugins.annotations.Parameter;
+
+import javax.annotation.Nonnull;
+import java.io.Serializable;
+import java.util.List;
+
+public class BuildXConfiguration implements Serializable {
+
+    /**
+     * Builder instance name
+     */
+    @Parameter
+    private String builderName;
+    /**
+     * Configuration file to create builder
+     */
+    @Parameter
+    private String configFile;
+
+    /**
+     * Location of docker state, including builder configurations
+     */
+    @Parameter
+    private String dockerStateDir;
+
+    /**
+     * List of platforms for multi-architecture build
+     */
+    @Parameter
+    private List<String> platforms;
+
+    @Nonnull
+    public List<String> getPlatforms() {
+        return EnvUtil.removeEmptyEntries(platforms);
+    }
+
+    public String getBuilderName() {
+        return builderName;
+    }
+
+    public String getConfigFile() {
+        return configFile;
+    }
+
+    public String getDockerStateDir() {
+        return dockerStateDir;
+    }
+
+    public boolean isBuildX() {
+        return !getPlatforms().isEmpty();
+    }
+
+
+    public static class Builder {
+
+        private final BuildXConfiguration config = new BuildXConfiguration();
+        private boolean isEmpty = true;
+
+        public BuildXConfiguration build() {
+            return isEmpty ? null : config;
+        }
+
+        public Builder builderName(String builderName) {
+            config.builderName = builderName;
+            if (builderName != null) {
+                isEmpty = false;
+            }
+            return this;
+        }
+
+        public Builder configFile(String configFile) {
+            config.configFile = configFile;
+            if (configFile != null) {
+                isEmpty = false;
+            }
+            return this;
+        }
+
+        public Builder dockerStateDir(String dockerStateDir) {
+            config.dockerStateDir = dockerStateDir;
+            if (dockerStateDir != null) {
+                isEmpty = false;
+            }
+            return this;
+        }
+
+        public Builder platforms(List<String> platforms) {
+            config.platforms = EnvUtil.removeEmptyEntries(platforms);
+            if (!config.platforms.isEmpty()) {
+                isEmpty = false;
+            }
+            return this;
+        }
+    }
+}

@@ -1,88 +1,91 @@
 package io.fabric8.maven.docker;
 
-import static io.fabric8.maven.docker.AbstractDockerMojo.CONTEXT_KEY_LOG_DISPATCHER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Properties;
-
-import org.apache.maven.model.Build;
-import org.apache.maven.monitor.logging.DefaultLog;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.project.MavenProjectHelper;
-import org.codehaus.plexus.logging.console.ConsoleLogger;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
-
 import io.fabric8.maven.docker.access.DockerAccess;
 import io.fabric8.maven.docker.config.BuildImageConfiguration;
+import io.fabric8.maven.docker.config.BuildXConfiguration;
 import io.fabric8.maven.docker.config.CopyConfiguration;
 import io.fabric8.maven.docker.config.ImageConfiguration;
 import io.fabric8.maven.docker.config.ImageConfiguration.Builder;
 import io.fabric8.maven.docker.config.RunImageConfiguration;
 import io.fabric8.maven.docker.log.LogDispatcher;
 import io.fabric8.maven.docker.service.ArchiveService;
+import io.fabric8.maven.docker.service.BuildService;
 import io.fabric8.maven.docker.service.QueryService;
 import io.fabric8.maven.docker.service.RegistryService;
 import io.fabric8.maven.docker.service.RunService;
 import io.fabric8.maven.docker.service.ServiceHub;
 import io.fabric8.maven.docker.util.AnsiLogger;
+import io.fabric8.maven.docker.util.AuthConfigFactory;
 import io.fabric8.maven.docker.util.GavLabel;
-import io.fabric8.maven.docker.util.Logger;
-import mockit.Deencapsulation;
-import mockit.Expectations;
-import mockit.Injectable;
-import mockit.Mocked;
+import org.apache.maven.model.Build;
+import org.apache.maven.monitor.logging.DefaultLog;
+import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.MavenProjectHelper;
+import org.codehaus.plexus.logging.console.ConsoleLogger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 
-public class BaseMojoTest {
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Properties;
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+import static io.fabric8.maven.docker.AbstractDockerMojo.CONTEXT_KEY_LOG_DISPATCHER;
 
-    @Injectable
+abstract class MojoTestBase {
+
+    @TempDir
+    public Path temporaryFolder;
+
+    @Mock
     protected AnsiLogger log;
 
-    @Mocked
+    @Mock
     protected ServiceHub serviceHub;
 
-    @Mocked
+    @Mock
     protected QueryService queryService;
 
-    @Mocked
+    @Mock
     protected RegistryService registryService;
 
-    @Mocked
+    @Mock
     protected RunService runService;
 
-    @Mocked
+    @Mock
     protected DockerAccess dockerAccess;
 
-    @Mocked
+    @Mock
     protected ArchiveService archiveService;
 
-    @Mocked
+    @Mock
+    protected BuildService buildService;
+
+    @Mock
     protected MavenProject mavenProject;
 
-    @Mocked
+    @Mock
     protected Build mavenBuild;
 
-    @Mocked
+    @Mock
     protected MavenProjectHelper mavenProjectHelper;
 
-    @Mocked
+    @Mock
     private LogDispatcher logDispatcher;
+
+    @Mock
+    protected AuthConfigFactory authConfigFactory;
 
     protected String projectGroupId;
     protected String projectArtifactId;
     protected String projectVersion;
-    protected String projectBaseDirectory;
+    protected File projectBaseDirectory;
     protected String projectBuildDirectory;
 
     protected GavLabel projectGavLabel;
@@ -90,7 +93,7 @@ public class BaseMojoTest {
     protected ConsoleLogger consoleLogger;
     protected AnsiLogger ansiLogger;
 
-    protected BaseMojoTest() {
+    protected MojoTestBase() {
         this.consoleLogger = new ConsoleLogger(1, "console");
         this.ansiLogger = new AnsiLogger(new DefaultLog(this.consoleLogger), false, null);
     }
@@ -102,12 +105,22 @@ public class BaseMojoTest {
     }
 
     protected ImageConfiguration singleImageWithBuild() {
-        return new ImageConfiguration.Builder()
-                .name("example:latest")
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .from("scratch")
-                        .build())
-                .build();
+        return singleImageConfiguration(null, null);
+    }
+
+    ImageConfiguration singleImageConfiguration(BuildXConfiguration buildx, String contextDir) {
+        BuildImageConfiguration buildImageConfiguration = new BuildImageConfiguration.Builder()
+            .from("scratch")
+            .buildx(buildx)
+            .args(Collections.singletonMap("foo", "bar"))
+            .contextDir(contextDir)
+            .build();
+        buildImageConfiguration.initAndValidate(log);
+
+        return new Builder()
+            .name("example:latest")
+            .buildConfig(buildImageConfiguration)
+            .build();
     }
 
     protected ImageConfiguration singleImageWithBuildWithTags(String... tags) {
@@ -192,45 +205,46 @@ public class BaseMojoTest {
         projectGroupId = "mock.group";
         projectArtifactId = "mock-artifact";
         projectVersion = "1.0.0-MOCK";
-        try {
-            projectBaseDirectory = temporaryFolder.newFolder("mock-base").getAbsolutePath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        projectBuildDirectory = new File(projectBaseDirectory, "mock-target").getAbsolutePath();
+        Path mockBase = temporaryFolder.resolve("mock-base").toAbsolutePath();
+        projectBaseDirectory = mockBase.toFile();
+        projectBuildDirectory = mockBase.resolve("mock-target").toString();
         projectGavLabel = new GavLabel(projectGroupId, projectArtifactId, projectVersion);
 
-        new Expectations() {{
-            mavenProject.getProperties(); result = new Properties(); minTimes = 0;
-            mavenProject.getBuild(); result = mavenBuild; minTimes = 0;
-            mavenProject.getGroupId(); result = projectGroupId; minTimes = 0;
-            mavenProject.getArtifactId(); result = projectArtifactId; minTimes = 0;
-            mavenProject.getVersion(); result = projectVersion; minTimes = 0;
-            mavenProject.getBasedir(); result = projectBaseDirectory; minTimes = 0;
-            mavenBuild.getDirectory(); result = projectBuildDirectory; minTimes = 0;
-        }};
+        Mockito.lenient().when(mavenProject.getProperties()).thenReturn(new Properties());
+        Mockito.lenient().when(mavenProject.getBuild()).thenReturn(mavenBuild);
+        Mockito.lenient().when(mavenProject.getGroupId()).thenReturn(projectGroupId);
+        Mockito.lenient().when(mavenProject.getArtifactId()).thenReturn(projectArtifactId);
+        Mockito.lenient().when(mavenProject.getVersion()).thenReturn(projectVersion);
+        Mockito.lenient().when(mavenProject.getBasedir()).thenReturn(projectBaseDirectory);
+        Mockito.lenient().when(mavenBuild.getDirectory()).thenReturn(projectBuildDirectory);
 
-        Deencapsulation.setField(mojo, "images", Collections.emptyList());
-        Deencapsulation.setField(mojo, "resolvedImages", Collections.emptyList());
-        Deencapsulation.setField(mojo, "project", mavenProject);
-        Deencapsulation.setField(mojo, "log", this.ansiLogger);
+        mojo.images = Collections.emptyList();
+        mojo.resolvedImages = Collections.emptyList();
+        mojo.project = mavenProject;
+        mojo.log = ansiLogger;
+        mojo.outputDirectory= "target/docker";
+        mojo.authConfigFactory= authConfigFactory;
 
-        mojo.setPluginContext(new HashMap());
+        mojo.setPluginContext(new HashMap<>());
         mojo.getPluginContext().put(CONTEXT_KEY_LOG_DISPATCHER, logDispatcher);
+
+        Mockito.lenient().doReturn(queryService).when(serviceHub).getQueryService();
+        Mockito.lenient().doReturn(registryService).when(serviceHub).getRegistryService();
+        Mockito.lenient().doReturn(runService).when(serviceHub).getRunService();
+        Mockito.lenient().doReturn(dockerAccess).when(serviceHub).getDockerAccess();
+        Mockito.lenient().doReturn(archiveService).when(serviceHub).getArchiveService();
+        Mockito.lenient().doReturn(buildService).when(serviceHub).getBuildService();
     }
 
     protected void givenResolvedImages(AbstractDockerMojo mojo, List<ImageConfiguration> resolvedImages) {
-        Deencapsulation.setField(mojo, "images", resolvedImages);
-        Deencapsulation.setField(mojo, "resolvedImages", resolvedImages);
+        mojo.images=resolvedImages;
+        mojo.resolvedImages= resolvedImages;
     }
 
     protected void givenPluginContext(AbstractDockerMojo mojo, Object key, Object value) {
         mojo.getPluginContext().put(key, value);
     }
 
-    protected void givenCopyAll(AbstractDockerMojo mojo) {
-        Deencapsulation.setField(mojo, "copyAll", true);
-    }
 
     protected File resolveMavenProjectPath(String path) {
         if (path == null) {
@@ -245,11 +259,11 @@ public class BaseMojoTest {
 
     protected void assertAbsolutePathEquals(final File expected, final File actual) {
         if (expected == null) {
-            assertNull(actual);
+            Assertions.assertNull(actual);
         } else {
-            assertNotNull(actual);
+            Assertions.assertNotNull(actual);
             try {
-                assertEquals(expected.getCanonicalPath(), actual.getCanonicalPath());
+                Assertions.assertEquals(expected.getCanonicalPath(), actual.getCanonicalPath());
             } catch (IOException e) {
                 throw new AssertionError(e);
             }

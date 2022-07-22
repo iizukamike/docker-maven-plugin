@@ -1,8 +1,9 @@
-package io.fabric8.maven.docker.config.handler.property;/*
+package io.fabric8.maven.docker.config.handler.property;
+/*
  *
  * Copyright 2014 Roland Huss
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -14,17 +15,6 @@ package io.fabric8.maven.docker.config.handler.property;/*
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 
 import io.fabric8.maven.docker.config.Arguments;
 import io.fabric8.maven.docker.config.AssemblyConfiguration;
@@ -39,925 +29,922 @@ import io.fabric8.maven.docker.config.RunImageConfiguration;
 import io.fabric8.maven.docker.config.UlimitConfig;
 import io.fabric8.maven.docker.config.WaitConfiguration;
 import io.fabric8.maven.docker.config.handler.AbstractConfigHandlerTest;
-import mockit.Expectations;
-import mockit.Mocked;
+import io.fabric8.maven.docker.util.Logger;
+
 import org.apache.maven.plugins.assembly.model.Assembly;
 import org.apache.maven.plugins.assembly.model.DependencySet;
 import org.apache.maven.project.MavenProject;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 import static io.fabric8.maven.docker.config.BuildImageConfiguration.DEFAULT_CLEANUP;
 import static io.fabric8.maven.docker.config.BuildImageConfiguration.DEFAULT_FILTER;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * @author roland
  * @since 05/12/14
  */
-
-public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
+@ExtendWith(MockitoExtension.class)
+class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
 
     private PropertyConfigHandler configHandler;
     private ImageConfiguration imageConfiguration;
 
-    @Mocked
+    @Mock
     private MavenProject project;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         configHandler = new PropertyConfigHandler();
         imageConfiguration = buildAnUnresolvedImage();
     }
 
     @Test
-    public void testSkipBuild() {
-        assertFalse(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_BUILD, false)).getBuildConfiguration().skip());
-        assertTrue(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_BUILD, true)).getBuildConfiguration().skip());
+    void testSkipBuild() {
+        Assertions.assertFalse(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_BUILD, false)).getBuildConfiguration().skip());
+        Assertions.assertTrue(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_BUILD, true)).getBuildConfiguration().skip());
 
-        assertFalse(resolveExternalImageConfig(new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "busybox"}).getBuildConfiguration().skip());
+        Assertions.assertFalse(resolveExternalImageConfig(new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "busybox" }).getBuildConfiguration().skip());
     }
 
     @Test
-    public void testSkipPush() {
-        assertFalse(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_PUSH, false)).getBuildConfiguration().skipPush());
-        assertTrue(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_PUSH, true)).getBuildConfiguration().skipPush());
+    void testSkipPush() {
+        Assertions.assertFalse(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_PUSH, false)).getBuildConfiguration().skipPush());
+        Assertions.assertTrue(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_PUSH, true)).getBuildConfiguration().skipPush());
 
-        assertFalse(resolveExternalImageConfig(new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "busybox"}).getBuildConfiguration().skipPush());
+        Assertions.assertFalse(resolveExternalImageConfig(new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "busybox" }).getBuildConfiguration().skipPush());
     }
 
     @Test
-    public void testSkipRun() {
-        assertFalse(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_RUN, false)).getRunConfiguration().skip());
-        assertTrue(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_RUN, true)).getRunConfiguration().skip());
+    void testSkipRun() {
+        Assertions.assertFalse(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_RUN, false)).getRunConfiguration().skip());
+        Assertions.assertTrue(resolveExternalImageConfig(getSkipTestData(ConfigKey.SKIP_RUN, true)).getRunConfiguration().skip());
 
-        assertFalse(resolveExternalImageConfig(new String[] {k(ConfigKey.NAME), "image"}).getRunConfiguration().skip());
+        Assertions.assertFalse(resolveExternalImageConfig(new String[] { k(ConfigKey.NAME), "image" }).getRunConfiguration().skip());
     }
 
     @Test
-    public void testType() throws Exception {
-        assertNotNull(configHandler.getType());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testEmpty() throws Exception {
-        resolveImage(imageConfiguration, props());
+    void testType() {
+        Assertions.assertNotNull(configHandler.getType());
     }
 
     @Test
-    public void testPorts() {
+    void testEmpty() {
+        Properties properties = props();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> resolveImage(imageConfiguration, properties));
+    }
+
+    @Test
+    void testPorts() {
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.name","demo",
-                        "docker.ports.1", "jolokia.port:8080",
-                        "docker.ports.2", "9090",
-                        "docker.ports.3", "0.0.0.0:80:80",
-                        "docker.from", "busybox"
-                                        ));
-        assertEquals(1,configs.size());
+            imageConfiguration, props(
+                "docker.name", "demo",
+                "docker.ports.1", "jolokia.port:8080",
+                "docker.ports.2", "9090",
+                "docker.ports.3", "0.0.0.0:80:80",
+                "docker.from", "busybox"
+            ));
+        Assertions.assertEquals(1, configs.size());
         RunImageConfiguration runConfig = configs.get(0).getRunConfiguration();
         List<String> portsAsList = runConfig.getPorts();
         String[] ports = new ArrayList<>(portsAsList).toArray(new String[portsAsList.size()]);
-        assertArrayEquals(new String[] {
-                "jolokia.port:8080",
-                "9090",
-                "0.0.0.0:80:80"
-        },ports);
+        Assertions.assertArrayEquals(new String[] {
+            "jolokia.port:8080",
+            "9090",
+            "0.0.0.0:80:80"
+        }, ports);
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
         ports = new ArrayList<>(buildConfig.getPorts()).toArray(new String[buildConfig.getPorts().size()]);
-        assertArrayEquals(new String[]{"8080", "9090", "80"}, ports);
+        Assertions.assertArrayEquals(new String[] { "8080", "9090", "80" }, ports);
     }
 
-
     @Test
-    public void testPortsFromConfigAndProperties() {
+    void testPortsFromConfigAndProperties() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(new HashMap<String, String>())
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .ports(Arrays.asList("1234"))
-                        .cacheFrom((Arrays.asList("foo/bar:latest")))
-                        .build()
-                )
-                .runConfig(new RunImageConfiguration.Builder()
-                    .ports(Arrays.asList("jolokia.port:1234"))
-                    .build()
-                )
-                .build();
+            .externalConfig(new HashMap<>())
+            .buildConfig(new BuildImageConfiguration.Builder()
+                .ports(Collections.singletonList("1234"))
+                .cacheFrom((Collections.singletonList("foo/bar:latest")))
+                .build()
+            )
+            .runConfig(new RunImageConfiguration.Builder()
+                .ports(Collections.singletonList("jolokia.port:1234"))
+                .build()
+            )
+            .build();
 
         makeExternalConfigUse(PropertyMode.Override);
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.name","demo",
-                        "docker.ports.1", "9090",
-                        "docker.ports.2", "0.0.0.0:80:80",
-                        "docker.from", "busybox"
-                ));
-        assertEquals(1,configs.size());
+            imageConfiguration, props(
+                "docker.name", "demo",
+                "docker.ports.1", "9090",
+                "docker.ports.2", "0.0.0.0:80:80",
+                "docker.from", "busybox"
+            ));
+        Assertions.assertEquals(1, configs.size());
         RunImageConfiguration runConfig = configs.get(0).getRunConfiguration();
         List<String> portsAsList = runConfig.getPorts();
         String[] ports = new ArrayList<>(portsAsList).toArray(new String[portsAsList.size()]);
-        assertArrayEquals(new String[] {
-                "9090",
-                "0.0.0.0:80:80",
-                "jolokia.port:1234"
-        },ports);
+        Assertions.assertArrayEquals(new String[] {
+            "9090",
+            "0.0.0.0:80:80",
+            "jolokia.port:1234"
+        }, ports);
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
         ports = new ArrayList<>(buildConfig.getPorts()).toArray(new String[buildConfig.getPorts().size()]);
-        assertArrayEquals(new String[]{"9090", "80", "1234"}, ports);
+        Assertions.assertArrayEquals(new String[] { "9090", "80", "1234" }, ports);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidPropertyMode() {
+    @Test
+    void testInvalidPropertyMode() {
         makeExternalConfigUse(PropertyMode.Override);
         imageConfiguration.getExternalConfig().put("mode", "invalid");
 
-        resolveImage(imageConfiguration,props());
+        Properties properties = props();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> resolveImage(imageConfiguration, properties));
     }
 
     @Test
-    public void testRunCommands() {
+    void testRunCommands() {
         List<ImageConfiguration> configs = resolveImage(
-            imageConfiguration,props(
+            imageConfiguration, props(
                 "docker.from", "base",
-                "docker.name","demo",
+                "docker.name", "demo",
                 "docker.run.1", "foo",
                 "docker.run.2", "bar",
                 "docker.run.3", "wibble")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
         String[] runCommands = new ArrayList<>(buildConfig.getRunCmds()).toArray(new String[buildConfig.getRunCmds().size()]);
-        assertArrayEquals(new String[]{"foo", "bar", "wibble"}, runCommands);
+        Assertions.assertArrayEquals(new String[] { "foo", "bar", "wibble" }, runCommands);
     }
 
     @Test
-    public void testShell() {
+    void testShell() {
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo",
-                        "docker.shell", "/bin/sh -c")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.shell", "/bin/sh -c")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
         String[] shell = new ArrayList<>(buildConfig.getShell().asStrings()).toArray(new String[buildConfig.getShell().asStrings().size()]);
-        assertArrayEquals(new String[]{"/bin/sh", "-c"}, shell);
+        Assertions.assertArrayEquals(new String[] { "/bin/sh", "-c" }, shell);
     }
 
     @Test
-    public void testRunCommandsFromPropertiesAndConfig() {
+    void testRunCommandsFromPropertiesAndConfig() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(new HashMap<String, String>())
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .runCmds(Arrays.asList("some","ignored","value"))
-                        .cacheFrom((Arrays.asList("foo/bar:latest")))
-                        .build()
-                )
-                .build();
+            .externalConfig(new HashMap<>())
+            .buildConfig(new BuildImageConfiguration.Builder()
+                .runCmds(Arrays.asList("some", "ignored", "value"))
+                .cacheFrom((Collections.singletonList("foo/bar:latest")))
+                .build()
+            )
+            .build();
 
         makeExternalConfigUse(PropertyMode.Override);
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo",
-                        "docker.run.1", "propconf",
-                        "docker.run.2", "withrun",
-                        "docker.run.3", "used")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.run.1", "propconf",
+                "docker.run.2", "withrun",
+                "docker.run.3", "used")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
         String[] runCommands = new ArrayList<>(buildConfig.getRunCmds()).toArray(new String[buildConfig.getRunCmds().size()]);
-        assertArrayEquals(new String[]{"propconf", "withrun", "used"}, runCommands);
+        Assertions.assertArrayEquals(new String[] { "propconf", "withrun", "used" }, runCommands);
     }
 
     @Test
-    public void testShellFromPropertiesAndConfig() {
+    void testShellFromPropertiesAndConfig() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(new HashMap<String, String>())
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .shell(new Arguments(Arrays.asList("some","ignored","value")))
-                        .cacheFrom((Arrays.asList("foo/bar:latest")))
-                        .build()
-                )
-                .build();
+            .externalConfig(new HashMap<>())
+            .buildConfig(new BuildImageConfiguration.Builder()
+                .shell(new Arguments(Arrays.asList("some", "ignored", "value")))
+                .cacheFrom((Collections.singletonList("foo/bar:latest")))
+                .build()
+            )
+            .build();
 
         makeExternalConfigUse(PropertyMode.Override);
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo",
-                        "docker.shell", "propconf withrun used")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.shell", "propconf withrun used")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
         String[] shell = new ArrayList<>(buildConfig.getShell().asStrings()).toArray(new String[buildConfig.getShell().asStrings().size()]);
-        assertArrayEquals(new String[]{"propconf", "withrun", "used"}, shell);
+        Assertions.assertArrayEquals(new String[] { "propconf", "withrun", "used" }, shell);
     }
 
     @Test
-    public void testRunCommandsFromConfigAndProperties() {
+    void testRunCommandsFromConfigAndProperties() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(externalConfigMode(PropertyMode.Fallback))
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .runCmds(Arrays.asList("some","configured","value"))
-                        .cacheFrom((Arrays.asList("foo/bar:latest")))
-                        .build()
-                )
-                .build();
+            .externalConfig(externalConfigMode(PropertyMode.Fallback))
+            .buildConfig(new BuildImageConfiguration.Builder()
+                .runCmds(Arrays.asList("some", "configured", "value"))
+                .cacheFrom((Collections.singletonList("foo/bar:latest")))
+                .build()
+            )
+            .build();
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo",
-                        "docker.run.1", "this",
-                        "docker.run.2", "is",
-                        "docker.run.3", "ignored")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.run.1", "this",
+                "docker.run.2", "is",
+                "docker.run.3", "ignored")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
         String[] runCommands = new ArrayList<>(buildConfig.getRunCmds()).toArray(new String[buildConfig.getRunCmds().size()]);
-        assertArrayEquals(new String[]{"some", "configured", "value"}, runCommands);
+        Assertions.assertArrayEquals(new String[] { "some", "configured", "value" }, runCommands);
     }
 
     @Test
-    public void testEntrypoint() {
+    void testEntrypoint() {
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo",
-                        "docker.entrypoint", "/entrypoint.sh --from-property")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.entrypoint", "/entrypoint.sh --from-property")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
-        assertArrayEquals(new String[]{"/entrypoint.sh", "--from-property"}, buildConfig.getEntryPoint().asStrings().toArray());
+        Assertions.assertArrayEquals(new String[] { "/entrypoint.sh", "--from-property" }, buildConfig.getEntryPoint().asStrings().toArray());
     }
 
     @Test
-    public void testEntrypointExecFromConfig() {
+    void testEntrypointExecFromConfig() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(externalConfigMode(PropertyMode.Fallback))
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .entryPoint(new Arguments(Arrays.asList("/entrypoint.sh", "--from-property")))
-                        .cacheFrom((Arrays.asList("foo/bar:latest")))
-                        .build()
-                )
-                .build();
+            .externalConfig(externalConfigMode(PropertyMode.Fallback))
+            .buildConfig(new BuildImageConfiguration.Builder()
+                .entryPoint(new Arguments(Arrays.asList("/entrypoint.sh", "--from-property")))
+                .cacheFrom((Collections.singletonList("foo/bar:latest")))
+                .build()
+            )
+            .build();
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         BuildImageConfiguration buildConfig = configs.get(0).getBuildConfiguration();
-        assertArrayEquals(new String[]{"/entrypoint.sh", "--from-property"}, buildConfig.getEntryPoint().asStrings().toArray());
+        Assertions.assertArrayEquals(new String[] { "/entrypoint.sh", "--from-property" }, buildConfig.getEntryPoint().asStrings().toArray());
     }
 
     @Test
-    public void testDefaultLogEnabledConfiguration() {
+    void testDefaultLogEnabledConfiguration() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(externalConfigMode(PropertyMode.Override))
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .cacheFrom((Arrays.asList("foo/bar:latest")))
-                        .build()
-                )
-                .build();
+            .externalConfig(externalConfigMode(PropertyMode.Override))
+            .buildConfig(new BuildImageConfiguration.Builder()
+                .cacheFrom((Collections.singletonList("foo/bar:latest")))
+                .build()
+            )
+            .build();
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration, props(
-                        "docker.from", "base",
-                        "docker.name", "demo")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         RunImageConfiguration runConfiguration = configs.get(0).getRunConfiguration();
-        assertNull(runConfiguration.getLogConfiguration().isEnabled());
-        assertFalse(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertNull(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertFalse(runConfiguration.getLogConfiguration().isActivated());
 
         // If any log property is set, enabled shall be true by default
         configs = resolveImage(
-                imageConfiguration, props(
-                        "docker.from", "base",
-                        "docker.name", "demo",
-                        "docker.log.color", "green")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.log.color", "green")
         );
 
         runConfiguration = getRunImageConfiguration(configs);
-        assertNull(runConfiguration.getLogConfiguration().isEnabled());
-        assertTrue(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("green", runConfiguration.getLogConfiguration().getColor());
-
+        Assertions.assertNull(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("green", runConfiguration.getLogConfiguration().getColor());
 
         // If image configuration has non-blank log configuration, it should become enabled
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(externalConfigMode(PropertyMode.Override))
-                .runConfig(new RunImageConfiguration.Builder()
-                        .log(new LogConfiguration.Builder().color("red").build())
-                        .build()
-                )
-                .build();
+            .externalConfig(externalConfigMode(PropertyMode.Override))
+            .runConfig(new RunImageConfiguration.Builder()
+                .log(new LogConfiguration.Builder().color("red").build())
+                .build()
+            )
+            .build();
 
         configs = resolveImage(
-                imageConfiguration, props(
-                        "docker.from", "base",
-                        "docker.name", "demo")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo")
         );
 
         runConfiguration = getRunImageConfiguration(configs);
-        assertNull(runConfiguration.getLogConfiguration().isEnabled());
-        assertTrue(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("red", runConfiguration.getLogConfiguration().getColor());
-
+        Assertions.assertNull(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("red", runConfiguration.getLogConfiguration().getColor());
 
         // and if set by property, still enabled but overrides
         configs = resolveImage(
-                imageConfiguration, props(
-                        "docker.from", "base",
-                        "docker.name", "demo",
-                        "docker.log.color", "yellow")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.log.color", "yellow")
         );
 
         runConfiguration = getRunImageConfiguration(configs);
-        assertNull(runConfiguration.getLogConfiguration().isEnabled());
-        assertTrue(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("yellow", runConfiguration.getLogConfiguration().getColor());
-
+        Assertions.assertNull(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("yellow", runConfiguration.getLogConfiguration().getColor());
 
         // Fallback works as well
         makeExternalConfigUse(PropertyMode.Fallback);
         configs = resolveImage(
-                imageConfiguration, props(
-                        "docker.from", "base",
-                        "docker.name", "demo",
-                        "docker.log.color", "yellow")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.log.color", "yellow")
         );
 
         runConfiguration = getRunImageConfiguration(configs);
-        assertNull(runConfiguration.getLogConfiguration().isEnabled());
-        assertTrue(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("red", runConfiguration.getLogConfiguration().getColor());
+        Assertions.assertNull(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("red", runConfiguration.getLogConfiguration().getColor());
     }
 
     @Test
-    public void testExplicitLogEnabledConfiguration() {
+    void testExplicitLogEnabledConfiguration() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(externalConfigMode(PropertyMode.Override))
-                .runConfig(new RunImageConfiguration.Builder()
-                        .log(new LogConfiguration.Builder().color("red").build())
-                        .build()
-                )
-                .build();
+            .externalConfig(externalConfigMode(PropertyMode.Override))
+            .runConfig(new RunImageConfiguration.Builder()
+                .log(new LogConfiguration.Builder().color("red").build())
+                .build()
+            )
+            .build();
 
         // Explicitly enabled
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration, props(
-                        "docker.from", "base",
-                        "docker.name", "demo",
-                        "docker.log.enabled", "true")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.log.enabled", "true")
         );
 
         RunImageConfiguration runConfiguration = getRunImageConfiguration(configs);
-        assertTrue(runConfiguration.getLogConfiguration().isEnabled());
-        assertTrue(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("red", runConfiguration.getLogConfiguration().getColor());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("red", runConfiguration.getLogConfiguration().getColor());
 
         // Explicitly disabled
         makeExternalConfigUse(PropertyMode.Override);
         configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo",
-                        "docker.log.color", "yellow",
-                        "docker.log.enabled", "false")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.log.color", "yellow",
+                "docker.log.enabled", "false")
         );
 
         runConfiguration = getRunImageConfiguration(configs);
-        assertFalse(runConfiguration.getLogConfiguration().isEnabled());
-        assertFalse(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("yellow", runConfiguration.getLogConfiguration().getColor());
-
+        Assertions.assertFalse(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertFalse(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("yellow", runConfiguration.getLogConfiguration().getColor());
 
         // Disabled by config
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(externalConfigMode(PropertyMode.Fallback))
-                .runConfig(new RunImageConfiguration.Builder()
-                        .log(new LogConfiguration.Builder().enabled(false).color("red").build())
-                        .build()
-                )
-                .build();
+            .externalConfig(externalConfigMode(PropertyMode.Fallback))
+            .runConfig(new RunImageConfiguration.Builder()
+                .log(new LogConfiguration.Builder().enabled(false).color("red").build())
+                .build()
+            )
+            .build();
 
         configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo")
         );
 
         runConfiguration = getRunImageConfiguration(configs);
-        assertFalse(runConfiguration.getLogConfiguration().isEnabled());
-        assertFalse(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("red", runConfiguration.getLogConfiguration().getColor());
+        Assertions.assertFalse(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertFalse(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("red", runConfiguration.getLogConfiguration().getColor());
 
         // Enabled by property, with override
         makeExternalConfigUse(PropertyMode.Override);
         configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo",
-                        "docker.log.enabled", "true")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.log.enabled", "true")
         );
 
         runConfiguration = getRunImageConfiguration(configs);
-        assertTrue(runConfiguration.getLogConfiguration().isEnabled());
-        assertTrue(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("red", runConfiguration.getLogConfiguration().getColor());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("red", runConfiguration.getLogConfiguration().getColor());
 
         // Disabled with property too
         configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "base",
-                        "docker.name","demo",
-                        "docker.log.enabled", "false")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.log.enabled", "false")
         );
 
         runConfiguration = getRunImageConfiguration(configs);
-        assertFalse(runConfiguration.getLogConfiguration().isEnabled());
-        assertFalse(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("red", runConfiguration.getLogConfiguration().getColor());
+        Assertions.assertFalse(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertFalse(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("red", runConfiguration.getLogConfiguration().getColor());
     }
 
     @Test
-    public void testLogFile() {
+    void testLogFile() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(externalConfigMode(PropertyMode.Override))
-                .runConfig(new RunImageConfiguration.Builder()
-                        .log(new LogConfiguration.Builder().file("myfile").build())
-                        .build()
-                )
-                .build();
+            .externalConfig(externalConfigMode(PropertyMode.Override))
+            .runConfig(new RunImageConfiguration.Builder()
+                .log(new LogConfiguration.Builder().file("myfile").build())
+                .build()
+            )
+            .build();
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration, props(
-                        "docker.from", "base",
-                        "docker.name", "demo")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         RunImageConfiguration runConfiguration = configs.get(0).getRunConfiguration();
-        assertNull(runConfiguration.getLogConfiguration().isEnabled());
-        assertTrue(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("myfile", runConfiguration.getLogConfiguration().getFileLocation());
+        Assertions.assertNull(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("myfile", runConfiguration.getLogConfiguration().getFileLocation());
 
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(externalConfigMode(PropertyMode.Override))
-                .runConfig(new RunImageConfiguration.Builder()
-                        .build()
-                )
-                .build();
+            .externalConfig(externalConfigMode(PropertyMode.Override))
+            .runConfig(new RunImageConfiguration.Builder()
+                .build()
+            )
+            .build();
 
         configs = resolveImage(
-                imageConfiguration, props(
-                        "docker.from", "base",
-                        "docker.name", "demo",
-                        "docker.log.file", "myfilefromprop")
+            imageConfiguration, props(
+                "docker.from", "base",
+                "docker.name", "demo",
+                "docker.log.file", "myfilefromprop")
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         runConfiguration = configs.get(0).getRunConfiguration();
-        assertNull(runConfiguration.getLogConfiguration().isEnabled());
-        assertTrue(runConfiguration.getLogConfiguration().isActivated());
-        assertEquals("myfilefromprop", runConfiguration.getLogConfiguration().getFileLocation());
+        Assertions.assertNull(runConfiguration.getLogConfiguration().isEnabled());
+        Assertions.assertTrue(runConfiguration.getLogConfiguration().isActivated());
+        Assertions.assertEquals("myfilefromprop", runConfiguration.getLogConfiguration().getFileLocation());
     }
 
     private RunImageConfiguration getRunImageConfiguration(List<ImageConfiguration> configs) {
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
         return configs.get(0).getRunConfiguration();
     }
 
     @Test
-    public void testBuildFromDockerFileMerged() {
+    void testBuildFromDockerFileMerged() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .name("myimage")
-                .externalConfig(externalConfigMode(PropertyMode.Override))
-                .buildConfig(new BuildImageConfiguration.Builder()
-                        .dockerFile("/some/path")
-                        .cacheFrom((Arrays.asList("foo/bar:latest")))
-                        .build()
-                )
-                .build();
+            .name("myimage")
+            .externalConfig(externalConfigMode(PropertyMode.Override))
+            .buildConfig(new BuildImageConfiguration.Builder()
+                .dockerFile("/some/path")
+                .cacheFrom((Collections.singletonList("foo/bar:latest")))
+                .build()
+            )
+            .build();
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration, props()
+            imageConfiguration, props()
         );
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
 
         BuildImageConfiguration buildConfiguration = configs.get(0).getBuildConfiguration();
-        assertNotNull(buildConfiguration);
+        Assertions.assertNotNull(buildConfiguration);
         buildConfiguration.initAndValidate(null);
 
         Path absolutePath = Paths.get(".").toAbsolutePath();
         String expectedPath = absolutePath.getRoot() + "some" + File.separator + "path";
-        assertEquals(expectedPath, buildConfiguration.getDockerFile().getAbsolutePath());
+        Assertions.assertEquals(expectedPath, buildConfiguration.getDockerFile().getAbsolutePath());
     }
 
     @Test
-    public void testEnvAndLabels() throws Exception {
+    void testEnvAndLabels() {
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                    "docker.from", "baase",
-                        "docker.name","demo",
-                        "docker.env.HOME", "/tmp",
-                        "docker.env.root.dir", "/bla",
-                        "docker.labels.version", "1.0.0",
-                        "docker.labels.blub.bla.foobar", "yep"
-                                        ));
+            imageConfiguration, props(
+                "docker.from", "baase",
+                "docker.name", "demo",
+                "docker.env.HOME", "/tmp",
+                "docker.env.root.dir", "/bla",
+                "docker.labels.version", "1.0.0",
+                "docker.labels.blub.bla.foobar", "yep"
+            ));
 
-        assertEquals(1,configs.size());
+        Assertions.assertEquals(1, configs.size());
         ImageConfiguration calcConfig = configs.get(0);
-        for (Map env : new Map[] { calcConfig.getBuildConfiguration().getEnv(),
-                                   calcConfig.getRunConfiguration().getEnv()}) {
-            assertEquals(2,env.size());
-            assertEquals("/tmp",env.get("HOME"));
-            assertEquals("/bla",env.get("root.dir"));
+        for (Map<String,String> env : new Map[] { calcConfig.getBuildConfiguration().getEnv(),
+            calcConfig.getRunConfiguration().getEnv() }) {
+            Assertions.assertEquals(2, env.size());
+            Assertions.assertEquals("/tmp", env.get("HOME"));
+            Assertions.assertEquals("/bla", env.get("root.dir"));
         }
-        for (Map labels : new Map[] { calcConfig.getBuildConfiguration().getLabels(),
-                                      calcConfig.getRunConfiguration().getLabels()}) {
-            assertEquals(2, labels.size());
-            assertEquals("1.0.0", labels.get("version"));
-            assertEquals("yep", labels.get("blub.bla.foobar"));
+        for (Map<String,String> labels : new Map[] { calcConfig.getBuildConfiguration().getLabels(),
+            calcConfig.getRunConfiguration().getLabels() }) {
+            Assertions.assertEquals(2, labels.size());
+            Assertions.assertEquals("1.0.0", labels.get("version"));
+            Assertions.assertEquals("yep", labels.get("blub.bla.foobar"));
         }
     }
 
-
     @Test
-    public void testSpecificEnv() throws Exception {
+    void testSpecificEnv() {
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "baase",
-                        "docker.name","demo",
-                        "docker.envBuild.HOME", "/tmp",
-                        "docker.envRun.root.dir", "/bla"
-                ));
+            imageConfiguration, props(
+                "docker.from", "baase",
+                "docker.name", "demo",
+                "docker.envBuild.HOME", "/tmp",
+                "docker.envRun.root.dir", "/bla"
+            ));
 
-        assertEquals(1,configs.size());
+        Assertions.assertEquals(1, configs.size());
         ImageConfiguration calcConfig = configs.get(0);
 
-        Map<String, String> env;
-
-        env = calcConfig.getBuildConfiguration().getEnv();
-        assertEquals(1,env.size());
-        assertEquals("/tmp",env.get("HOME"));
+        Map<String, String> env = calcConfig.getBuildConfiguration().getEnv();
+        Assertions.assertEquals(1, env.size());
+        Assertions.assertEquals("/tmp", env.get("HOME"));
 
         env = calcConfig.getRunConfiguration().getEnv();
-        assertEquals(1,env.size());
-        assertEquals("/bla",env.get("root.dir"));
+        Assertions.assertEquals(1, env.size());
+        Assertions.assertEquals("/bla", env.get("root.dir"));
     }
 
     @Test
-    public void testMergedEnv() throws Exception {
+    void testMergedEnv() {
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.from", "baase",
-                        "docker.name","demo",
-                        "docker.env.HOME", "/tmp",
-                        "docker.envBuild.HOME", "/var/tmp",
-                        "docker.envRun.root.dir", "/bla"
-                ));
+            imageConfiguration, props(
+                "docker.from", "baase",
+                "docker.name", "demo",
+                "docker.env.HOME", "/tmp",
+                "docker.envBuild.HOME", "/var/tmp",
+                "docker.envRun.root.dir", "/bla"
+            ));
 
-        assertEquals(1,configs.size());
+        Assertions.assertEquals(1, configs.size());
         ImageConfiguration calcConfig = configs.get(0);
 
-        Map<String, String> env;
-
-        env = calcConfig.getBuildConfiguration().getEnv();
-        assertEquals(1,env.size());
-        assertEquals("/var/tmp",env.get("HOME"));
+        Map<String, String> env = calcConfig.getBuildConfiguration().getEnv();
+        Assertions.assertEquals(1, env.size());
+        Assertions.assertEquals("/var/tmp", env.get("HOME"));
 
         env = calcConfig.getRunConfiguration().getEnv();
-        assertEquals(2,env.size());
-        assertEquals("/tmp",env.get("HOME"));
-        assertEquals("/bla",env.get("root.dir"));
+        Assertions.assertEquals(2, env.size());
+        Assertions.assertEquals("/tmp", env.get("HOME"));
+        Assertions.assertEquals("/bla", env.get("root.dir"));
     }
 
     @Test
-    public void testAssembly() throws Exception {
+    void testAssembly() {
         List<ImageConfiguration> configs = resolveImage(imageConfiguration, props(getTestAssemblyData()));
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
+        configs.get(0).initAndValidate(ConfigHelper.NameFormatter.IDENTITY, null);
 
-        List<AssemblyConfiguration> assemblies = configs.get(0).getBuildConfiguration().getAssemblyConfigurations();
-        assertEquals(1, assemblies.size());
+        List<AssemblyConfiguration> assemblies = configs.get(0).getBuildConfiguration().getAllAssemblyConfigurations();
+        Assertions.assertEquals(1, assemblies.size());
 
         AssemblyConfiguration config = assemblies.get(0);
-        assertEquals("user", config.getUser());
-        assertEquals("project", config.getDescriptorRef());
-        assertFalse(config.exportTargetDir());
-        assertTrue(config.isIgnorePermissions());
+        Assertions.assertEquals("user", config.getUser());
+        Assertions.assertEquals("project", config.getDescriptorRef());
+        Assertions.assertFalse(config.exportTargetDir());
+        Assertions.assertTrue(config.isIgnorePermissions());
     }
 
     @Test
-    public void testMultipleAssemblies() {
+    void testMultipleAssemblies() {
         List<ImageConfiguration> configs = resolveImage(imageConfiguration, props(getTestMultipleAssemblyData()));
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
+        configs.get(0).initAndValidate(ConfigHelper.NameFormatter.IDENTITY, null);
 
-        List<AssemblyConfiguration> assemblies = configs.get(0).getBuildConfiguration().getAssemblyConfigurations();
-        assertEquals(2, assemblies.size());
+        List<AssemblyConfiguration> assemblies = configs.get(0).getBuildConfiguration().getAllAssemblyConfigurations();
+        Assertions.assertEquals(2, assemblies.size());
 
         AssemblyConfiguration config = assemblies.get(0);
-        assertEquals("user", config.getUser());
-        assertEquals("project", config.getDescriptorRef());
-        assertFalse(config.exportTargetDir());
-        assertTrue(config.isIgnorePermissions());
+        Assertions.assertEquals("user", config.getUser());
+        Assertions.assertEquals("project", config.getDescriptorRef());
+        Assertions.assertFalse(config.exportTargetDir());
+        Assertions.assertTrue(config.isIgnorePermissions());
 
         config = assemblies.get(1);
-        assertEquals("user", config.getUser());
-        assertEquals("artifact", config.getDescriptorRef());
-        assertEquals("art", config.getName());
-        assertFalse(config.exportTargetDir());
-        assertTrue(config.isIgnorePermissions());
+        Assertions.assertEquals("user", config.getUser());
+        Assertions.assertEquals("artifact", config.getDescriptorRef());
+        Assertions.assertEquals("art", config.getName());
+        Assertions.assertFalse(config.exportTargetDir());
+        Assertions.assertTrue(config.isIgnorePermissions());
     }
 
     @Test
-    public void testAssemblyInline() throws Exception {
+    void testAssemblyInline() {
         Assembly assembly = new Assembly();
         assembly.addDependencySet(new DependencySet());
 
         imageConfiguration = new ImageConfiguration.Builder()
-                        .registry("docker.io")
-                        .name("test")
-                        .buildConfig(new BuildImageConfiguration.Builder()
-                                .assembly(new AssemblyConfiguration.Builder().assemblyDef(assembly).build())
-                                .build())
-                        .externalConfig(externalConfigMode(PropertyMode.Only))
-                        .build();
+            .registry("docker.io")
+            .name("test")
+            .buildConfig(new BuildImageConfiguration.Builder()
+                .assembly(new AssemblyConfiguration.Builder().assemblyDef(assembly).build())
+                .build())
+            .externalConfig(externalConfigMode(PropertyMode.Only))
+            .build();
 
         List<ImageConfiguration> configs = resolveImage(imageConfiguration, props(getTestAssemblyData()));
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
+        configs.get(0).initAndValidate(ConfigHelper.NameFormatter.IDENTITY, null);
 
-        AssemblyConfiguration config = configs.get(0).getBuildConfiguration().getAssemblyConfiguration();
-        assertNotNull(config.getInline());
-        assertEquals(1, config.getInline().getDependencySets().size());
+        List<AssemblyConfiguration> assemblyConfigurations = configs.get(0).getBuildConfiguration().getAllAssemblyConfigurations();
+        Assertions.assertEquals(1, assemblyConfigurations.size());
+        AssemblyConfiguration assemblyConfiguration = assemblyConfigurations.get(0);
+        Assertions.assertNotNull(assemblyConfiguration.getInline());
+        Assertions.assertEquals(1, assemblyConfiguration.getInline().getDependencySets().size());
     }
 
     @Test
-    public void testNoCleanup() throws Exception {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.CLEANUP), "none", k(ConfigKey.FROM), "base" };
+    void testNoCleanup() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.CLEANUP), "none", k(ConfigKey.FROM), "base" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(CleanupMode.NONE, config.getBuildConfiguration().cleanupMode());
+        Assertions.assertEquals(CleanupMode.NONE, config.getBuildConfiguration().cleanupMode());
     }
 
     @Test
-    public void testNoBuildConfig() throws Exception {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image" };
+    void testNoBuildConfig() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertNull(config.getBuildConfiguration());
+        Assertions.assertNull(config.getBuildConfiguration());
     }
 
     @Test
-    public void testDockerfile() throws Exception {
+    void testDockerfile() {
         String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.DOCKER_FILE_DIR), "src/main/docker/", k(ConfigKey.FROM), "busybox" };
         ImageConfiguration config = resolveExternalImageConfig(testData);
         config.initAndValidate(ConfigHelper.NameFormatter.IDENTITY, null);
-        assertTrue(config.getBuildConfiguration().isDockerFileMode());
-        assertEquals(new File("src/main/docker/Dockerfile"), config.getBuildConfiguration().getDockerFile());
+        Assertions.assertTrue(config.getBuildConfiguration().isDockerFileMode());
+        Assertions.assertEquals(new File("src/main/docker/Dockerfile"), config.getBuildConfiguration().getDockerFile());
     }
 
     @Test
-    public void testDockerArchive() {
+    void testDockerArchive() {
         String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.DOCKER_ARCHIVE), "dockerLoad.tar", k(ConfigKey.FROM), "busybox" };
         ImageConfiguration config = resolveExternalImageConfig(testData);
         config.initAndValidate(ConfigHelper.NameFormatter.IDENTITY, null);
-        assertFalse(config.getBuildConfiguration().isDockerFileMode());
-        assertEquals(new File("dockerLoad.tar"), config.getBuildConfiguration().getDockerArchive());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidDockerFileArchiveConfig() {
-        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.DOCKER_FILE_DIR),  "src/main/docker/", k(ConfigKey.DOCKER_ARCHIVE), "dockerLoad.tar", k(ConfigKey.FROM), "base" };
-        ImageConfiguration config = resolveExternalImageConfig(testData);
-        config.initAndValidate(ConfigHelper.NameFormatter.IDENTITY, null);
+        Assertions.assertFalse(config.getBuildConfiguration().isDockerFileMode());
+        Assertions.assertEquals(new File("dockerLoad.tar"), config.getBuildConfiguration().getDockerArchive());
     }
 
     @Test
-    public void testNoCacheDisabled() throws Exception {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.NO_CACHE), "false", k(ConfigKey.FROM), "base" };
-
+    void testInvalidDockerFileArchiveConfig() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.DOCKER_FILE_DIR), "src/main/docker/", k(ConfigKey.DOCKER_ARCHIVE), "dockerLoad.tar",
+            k(ConfigKey.FROM), "base" };
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(false, config.getBuildConfiguration().noCache());
+
+        Assertions.assertThrows(IllegalArgumentException.class, () -> config.initAndValidate(ConfigHelper.NameFormatter.IDENTITY, null));
     }
 
     @Test
-    public void testNoCacheEnabled() throws Exception {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.NO_CACHE), "true", k(ConfigKey.FROM), "base" };
+    void testNoCacheDisabled() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.NO_CACHE), "false", k(ConfigKey.FROM), "base" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(true, config.getBuildConfiguration().noCache());
+        Assertions.assertFalse(config.getBuildConfiguration().noCache());
     }
 
     @Test
-    public void testCacheFrom() {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.CACHE_FROM)+".1", "foo/bar:latest", k(ConfigKey.FROM), "base"};
+    void testNoCacheEnabled() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.NO_CACHE), "true", k(ConfigKey.FROM), "base" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(Collections.singletonList("foo/bar:latest"), config.getBuildConfiguration().getCacheFrom());
+        Assertions.assertTrue(config.getBuildConfiguration().noCache());
     }
 
     @Test
-    public void testCacheFromIsNullInBuildConfig() {
+    void testCacheFrom() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.CACHE_FROM) + ".1", "foo/bar:latest", k(ConfigKey.FROM), "base" };
+
+        ImageConfiguration config = resolveExternalImageConfig(testData);
+        Assertions.assertEquals(Collections.singletonList("foo/bar:latest"), config.getBuildConfiguration().getCacheFrom());
+    }
+
+    @Test
+    void testCacheFromIsNullInBuildConfig() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(new HashMap<>())
-                .buildConfig(new BuildImageConfiguration.Builder().build())
-                .build();
+            .externalConfig(new HashMap<>())
+            .buildConfig(new BuildImageConfiguration.Builder().build())
+            .build();
 
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        "docker.name","demo",
-                        "docker.from", "busybox"
-                ));
+            imageConfiguration, props(
+                "docker.name", "demo",
+                "docker.from", "busybox"
+            ));
 
-        assertNull(configs.get(0).getBuildConfiguration().getCacheFrom());
+        Assertions.assertNull(configs.get(0).getBuildConfiguration().getCacheFrom());
     }
 
     @Test
-    public void testNoOptimise() throws Exception {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.OPTIMISE), "false", k(ConfigKey.FROM), "base" };
+    void testNoOptimise() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.OPTIMISE), "false", k(ConfigKey.FROM), "base" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(false, config.getBuildConfiguration().optimise());
+        Assertions.assertFalse(config.getBuildConfiguration().optimise());
     }
 
     @Test
-    public void testDockerFile() {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.DOCKER_FILE), "file" };
+    void testDockerFile() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.DOCKER_FILE), "file" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertNotNull(config.getBuildConfiguration());
+        Assertions.assertNotNull(config.getBuildConfiguration());
     }
 
     @Test
-    public void testDockerFileDir() {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.DOCKER_FILE_DIR), "dir" };
+    void testDockerFileDir() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.DOCKER_FILE_DIR), "dir" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertNotNull(config.getBuildConfiguration());
+        Assertions.assertNotNull(config.getBuildConfiguration());
     }
 
     @Test
-    public void testContextDir() {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.CONTEXT_DIR), "dir" };
+    void testContextDir() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.CONTEXT_DIR), "dir" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertNotNull(config.getBuildConfiguration());
+        Assertions.assertNotNull(config.getBuildConfiguration());
     }
 
     @Test
-    public void testFilterDefault() {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "base" };
+    void testFilterDefault() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "base" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(DEFAULT_FILTER, config.getBuildConfiguration().getFilter());
+        Assertions.assertEquals(DEFAULT_FILTER, config.getBuildConfiguration().getFilter());
     }
 
     @Test
-    public void testFilter() {
+    void testFilter() {
         String filter = "@";
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "base", k(ConfigKey.FILTER), filter };
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "base", k(ConfigKey.FILTER), filter };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(filter, config.getBuildConfiguration().getFilter());
+        Assertions.assertEquals(filter, config.getBuildConfiguration().getFilter());
     }
 
     @Test
-    public void testCleanupDefault() {
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "base" };
+    void testCleanupDefault() {
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "base" };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(DEFAULT_CLEANUP, config.getBuildConfiguration().cleanupMode().toParameter());
+        Assertions.assertEquals(DEFAULT_CLEANUP, config.getBuildConfiguration().cleanupMode().toParameter());
     }
 
     @Test
-    public void testCleanup() {
+    void testCleanup() {
         CleanupMode mode = CleanupMode.REMOVE;
-        String[] testData = new String[] {k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "base", k(ConfigKey.CLEANUP), mode.toParameter() };
+        String[] testData = new String[] { k(ConfigKey.NAME), "image", k(ConfigKey.FROM), "base", k(ConfigKey.CLEANUP), mode.toParameter() };
 
         ImageConfiguration config = resolveExternalImageConfig(testData);
-        assertEquals(mode, config.getBuildConfiguration().cleanupMode());
+        Assertions.assertEquals(mode, config.getBuildConfiguration().cleanupMode());
     }
 
-
     @Test
-    public void testUlimit() {
+    void testUlimit() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(new HashMap<String, String>())
-                .runConfig(new RunImageConfiguration.Builder()
-                        .ulimits(Arrays.asList(
-                                new UlimitConfig("memlock", 100, 50),
-                                new UlimitConfig("nfile", 1024, 512)
-                        ))
-                        .build()
-                )
-                .build();
+            .externalConfig(new HashMap<>())
+            .runConfig(new RunImageConfiguration.Builder()
+                .ulimits(Arrays.asList(
+                    new UlimitConfig("memlock", 100, 50),
+                    new UlimitConfig("nfile", 1024, 512)
+                ))
+                .build()
+            )
+            .build();
 
         makeExternalConfigUse(PropertyMode.Override);
 
         // TODO: Does Replace make sense here or should we Merge?
         // If merge, it should probably have some more smarts on the ulimit name?
         List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration,props(
-                        k(ConfigKey.NAME), "image",
-                        k(ConfigKey.FROM), "base",
-                        k(ConfigKey.ULIMITS)+".1", "memlock=10:10",
-                        k(ConfigKey.ULIMITS)+".2", "memlock=:-1",
-                        k(ConfigKey.ULIMITS)+".3", "memlock=1024:",
-                        k(ConfigKey.ULIMITS)+".4", "memlock=2048"
-                ));
+            imageConfiguration, props(
+                k(ConfigKey.NAME), "image",
+                k(ConfigKey.FROM), "base",
+                k(ConfigKey.ULIMITS) + ".1", "memlock=10:10",
+                k(ConfigKey.ULIMITS) + ".2", "memlock=:-1",
+                k(ConfigKey.ULIMITS) + ".3", "memlock=1024:",
+                k(ConfigKey.ULIMITS) + ".4", "memlock=2048"
+            ));
 
-        assertEquals(1,configs.size());
+        Assertions.assertEquals(1, configs.size());
         RunImageConfiguration runConfig = configs.get(0).getRunConfiguration();
         List<UlimitConfig> ulimits = runConfig.getUlimits();
 
-        assertEquals(4, ulimits.size());
-        assertUlimitEquals(ulimit("memlock",10,10),runConfig.getUlimits().get(0));
-        assertUlimitEquals(ulimit("memlock",null,-1),runConfig.getUlimits().get(1));
-        assertUlimitEquals(ulimit("memlock",1024,null),runConfig.getUlimits().get(2));
-        assertUlimitEquals(ulimit("memlock",2048,null),runConfig.getUlimits().get(3));
+        Assertions.assertEquals(4, ulimits.size());
+        assertUlimitEquals(ulimit("memlock", 10, 10), runConfig.getUlimits().get(0));
+        assertUlimitEquals(ulimit("memlock", null, -1), runConfig.getUlimits().get(1));
+        assertUlimitEquals(ulimit("memlock", 1024, null), runConfig.getUlimits().get(2));
+        assertUlimitEquals(ulimit("memlock", 2048, null), runConfig.getUlimits().get(3));
     }
 
     @Test
-    public void testCopyConfiguration() {
+    void testCopyConfiguration() {
         imageConfiguration = new ImageConfiguration.Builder()
-                .externalConfig(new HashMap<>())
-                .copyConfig(new CopyConfiguration.Builder()
-                        .entries(Collections.singletonList(new CopyConfiguration.Entry("/test4/path", "project/dir")))
-                        .build())
-                .build();
+            .externalConfig(new HashMap<>())
+            .copyConfig(new CopyConfiguration.Builder()
+                .entries(Collections.singletonList(new CopyConfiguration.Entry("/test4/path", "project/dir")))
+                .build())
+            .build();
 
         makeExternalConfigUse(PropertyMode.Override);
 
         final List<ImageConfiguration> configs = resolveImage(
-                imageConfiguration, props(
-                        k(ConfigKey.NAME), "image",
-                        k(ConfigKey.FROM), "base",
-                        k(ConfigKey.COPY_ENTRIES) + ".1", "/test1",
-                        k(ConfigKey.COPY_ENTRIES) + ".2." + CopyConfiguration.CONTAINER_PATH_PROPERTY, "/test2",
-                        k(ConfigKey.COPY_ENTRIES) + ".2." + CopyConfiguration.HOST_DIRECTORY_PROPERTY, "/root/dir",
-                        k(ConfigKey.COPY_ENTRIES) + ".3." + CopyConfiguration.CONTAINER_PATH_PROPERTY, "/test3/path",
-                        k(ConfigKey.COPY_ENTRIES) + ".3." + CopyConfiguration.HOST_DIRECTORY_PROPERTY, "project/dir"
-                ));
+            imageConfiguration, props(
+                k(ConfigKey.NAME), "image",
+                k(ConfigKey.FROM), "base",
+                k(ConfigKey.COPY_ENTRIES) + ".1", "/test1",
+                k(ConfigKey.COPY_ENTRIES) + ".2." + CopyConfiguration.CONTAINER_PATH_PROPERTY, "/test2",
+                k(ConfigKey.COPY_ENTRIES) + ".2." + CopyConfiguration.HOST_DIRECTORY_PROPERTY, "/root/dir",
+                k(ConfigKey.COPY_ENTRIES) + ".3." + CopyConfiguration.CONTAINER_PATH_PROPERTY, "/test3/path",
+                k(ConfigKey.COPY_ENTRIES) + ".3." + CopyConfiguration.HOST_DIRECTORY_PROPERTY, "project/dir"
+            ));
 
-        assertEquals(1, configs.size());
+        Assertions.assertEquals(1, configs.size());
         final CopyConfiguration copyConfig = configs.get(0).getCopyConfiguration();
         final List<CopyConfiguration.Entry> copyEntries = copyConfig.getEntries();
 
-        assertEquals(3, copyEntries.size());
+        Assertions.assertEquals(3, copyEntries.size());
         assertCopyEntryEquals(new CopyConfiguration.Entry("/test1", null), copyEntries.get(0));
         assertCopyEntryEquals(new CopyConfiguration.Entry("/test2", "/root/dir"), copyEntries.get(1));
         assertCopyEntryEquals(new CopyConfiguration.Entry("/test3/path", "project/dir"), copyEntries.get(2));
     }
 
     @Test
-    public void testNoAssembly() throws Exception {
-        Properties props = props(k(ConfigKey.NAME), "image");
-        //List<ImageConfiguration> configs = configHandler.resolve(imageConfiguration, props);
-        //assertEquals(1, configs.size());
-
-        //AssemblyConfiguration config = configs.get(0).getBuildConfiguration().getAssemblyConfiguration();
-        //assertNull(config);
-    }
-
-    @Test
-    public void testResolve() {
+    void testResolve() {
         ImageConfiguration resolved = resolveExternalImageConfig(getTestData());
 
         validateBuildConfiguration(resolved.getBuildConfiguration());
         validateRunConfiguration(resolved.getRunConfiguration());
-        //validateWaitConfiguraion(resolved.getRunConfiguration().getWaitConfiguration());
     }
 
     @Override
@@ -972,19 +959,19 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
 
     @Override
     protected void validateEnv(Map<String, String> env) {
-        assertTrue(env.containsKey("HOME"));
-        assertEquals("/Users/roland", env.get("HOME"));
+        Assertions.assertTrue(env.containsKey("HOME"));
+        Assertions.assertEquals("/Users/roland", env.get("HOME"));
     }
 
     private ImageConfiguration buildAnUnresolvedImage() {
         return new ImageConfiguration.Builder()
-                .externalConfig(new HashMap<String, String>())
-                .build();
+            .externalConfig(new HashMap<>())
+            .build();
     }
 
     private Map<String, String> externalConfigMode(PropertyMode mode) {
         Map<String, String> externalConfig = new HashMap<>();
-        if(mode != null) {
+        if (mode != null) {
             externalConfig.put("type", "properties");
             externalConfig.put("mode", mode.name());
         }
@@ -994,7 +981,7 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
     private void makeExternalConfigUse(PropertyMode mode) {
         Map<String, String> externalConfig = imageConfiguration.getExternalConfig();
         externalConfig.put("type", "properties");
-        if(mode != null) {
+        if (mode != null) {
             externalConfig.put("mode", mode.name());
         } else {
             externalConfig.remove("mode");
@@ -1004,10 +991,9 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
     private List<ImageConfiguration> resolveImage(ImageConfiguration image, final Properties properties) {
         //MavenProject project = mock(MavenProject.class);
         //when(project.getProperties()).thenReturn(properties);
-        new Expectations() {{
-            project.getProperties(); result = properties;
-            project.getBasedir(); minTimes = 0; maxTimes = 1; result = new File("./");
-        }};
+
+        Mockito.doReturn(properties).when(project).getProperties();
+        Mockito.lenient().doReturn(new File("./")).when(project).getBasedir();
 
         return configHandler.resolve(image, project, null);
     }
@@ -1019,22 +1005,22 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
         ImageConfiguration config = new ImageConfiguration.Builder().name("image").alias("alias").externalConfig(external).build();
 
         List<ImageConfiguration> resolvedImageConfigs = resolveImage(config, props(testData));
-        assertEquals(1, resolvedImageConfigs.size());
+        Assertions.assertEquals(1, resolvedImageConfigs.size());
 
         return resolvedImageConfigs.get(0);
     }
 
     private void validateBuildConfiguration(BuildImageConfiguration buildConfig) {
-        assertEquals(CleanupMode.TRY_TO_REMOVE, buildConfig.cleanupMode());
-        assertEquals("command.sh", buildConfig.getCmd().getShell());
-        assertEquals("image", buildConfig.getFrom());
-        assertEquals("image-ext", buildConfig.getFromExt().get("name"));
-        assertEquals(a("8080"), buildConfig.getPorts());
-        assertEquals("registry", buildConfig.getRegistry());
-        assertEquals(a("/foo"), buildConfig.getVolumes());
-        assertEquals("fabric8io@redhat.com",buildConfig.getMaintainer());
-        assertEquals(false, buildConfig.noCache());
-        assertEquals("Always", buildConfig.getImagePullPolicy());
+        Assertions.assertEquals(CleanupMode.TRY_TO_REMOVE, buildConfig.cleanupMode());
+        Assertions.assertEquals("command.sh", buildConfig.getCmd().getShell());
+        Assertions.assertEquals("image", buildConfig.getFrom());
+        Assertions.assertEquals("image-ext", buildConfig.getFromExt().get("name"));
+        Assertions.assertEquals(a("8080"), buildConfig.getPorts());
+        Assertions.assertEquals("registry", buildConfig.getRegistry());
+        Assertions.assertEquals(a("/foo"), buildConfig.getVolumes());
+        Assertions.assertEquals("fabric8io@redhat.com", buildConfig.getMaintainer());
+        Assertions.assertFalse(buildConfig.noCache());
+        Assertions.assertEquals("Always", buildConfig.getImagePullPolicy());
 
         validateEnv(buildConfig.getEnv());
         validateLabels(buildConfig.getLabels());
@@ -1044,102 +1030,103 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
          * validate only the descriptor is required and defaults are all used, 'testAssembly' validates
          * all options can be set
          */
-        List<AssemblyConfiguration> assemblyConfigurations = buildConfig.getAssemblyConfigurations();
-        assertEquals(1, assemblyConfigurations.size());
+        List<AssemblyConfiguration> assemblyConfigurations = buildConfig.getAllAssemblyConfigurations();
+        Assertions.assertEquals(1, assemblyConfigurations.size());
 
         AssemblyConfiguration assemblyConfig = assemblyConfigurations.get(0);
 
-        assertEquals("/maven", assemblyConfig.getTargetDir());
-        assertEquals("assembly.xml", assemblyConfig.getDescriptor());
-        assertNull(assemblyConfig.getUser());
-        assertNull(assemblyConfig.exportTargetDir());
-        assertFalse(assemblyConfig.isIgnorePermissions());
+        Assertions.assertEquals("/maven", assemblyConfig.getTargetDir());
+        Assertions.assertEquals("assembly.xml", assemblyConfig.getDescriptor());
+        Assertions.assertNull(assemblyConfig.getUser());
+        Assertions.assertNull(assemblyConfig.exportTargetDir());
+        Assertions.assertFalse(assemblyConfig.isIgnorePermissions());
     }
 
     private void validateArgs(Map<String, String> args) {
-        assertEquals("http://proxy",args.get("PROXY"));
+        Assertions.assertEquals("http://proxy", args.get("PROXY"));
     }
 
     private void validateLabels(Map<String, String> labels) {
-        assertEquals("Hello\"World",labels.get("com.acme.label"));
+        Assertions.assertEquals("Hello\"World", labels.get("com.acme.label"));
     }
 
-    private void validateBuildOptions(Map<String,String> buildOptions) {
-        assertEquals("2147483648", buildOptions.get("shmsize"));
+    private void validateBuildOptions(Map<String, String> buildOptions) {
+        Assertions.assertEquals("2147483648", buildOptions.get("shmsize"));
     }
 
     protected void validateRunConfiguration(RunImageConfiguration runConfig) {
-        assertEquals(a("/foo", "/tmp:/tmp"), runConfig.getVolumeConfiguration().getBind());
-        assertEquals(a("CAP"), runConfig.getCapAdd());
-        assertEquals(a("CAP"), runConfig.getCapDrop());
-        assertEquals(a("seccomp=unconfined"), runConfig.getSecurityOpts());
-        assertEquals("command.sh", runConfig.getCmd().getShell());
-        assertEquals(a("8.8.8.8"), runConfig.getDns());
-        assertEquals("host",runConfig.getNetworkingConfig().getStandardMode(null));
-        assertEquals(a("example.com"), runConfig.getDnsSearch());
-        assertEquals("domain.com", runConfig.getDomainname());
-        assertEquals("entrypoint.sh", runConfig.getEntrypoint().getShell());
-        assertEquals(a("localhost:127.0.0.1"), runConfig.getExtraHosts());
-        assertEquals("subdomain", runConfig.getHostname());
-        assertEquals(a("redis"), runConfig.getLinks());
-        assertEquals((Long) 1L, runConfig.getMemory());
-        assertEquals((Long) 1L, runConfig.getMemorySwap());
-        assertEquals((Long) 1000000000L, runConfig.getCpus());
-        assertEquals("default",runConfig.getIsolation());
-        assertEquals((Long) 1L, runConfig.getCpuShares());
-        assertEquals("0,1", runConfig.getCpuSet());
-        assertEquals("/tmp/envProps.txt",runConfig.getEnvPropertyFile());
-        assertEquals("/tmp/props.txt", runConfig.getPortPropertyFile());
-        assertEquals(a("8081:8080"), runConfig.getPorts());
-        assertEquals(true, runConfig.getPrivileged());
-        assertEquals("tomcat", runConfig.getUser());
-        assertEquals(a("from"), runConfig.getVolumeConfiguration().getFrom());
-        assertEquals("foo", runConfig.getWorkingDir());
-        assertNotNull( runConfig.getUlimits());
-        assertEquals(4, runConfig.getUlimits().size());
-        assertUlimitEquals(ulimit("memlock",10,10),runConfig.getUlimits().get(0));
-        assertUlimitEquals(ulimit("memlock",null,-1),runConfig.getUlimits().get(1));
-        assertUlimitEquals(ulimit("memlock",1024,null),runConfig.getUlimits().get(2));
-        assertUlimitEquals(ulimit("memlock",2048,null),runConfig.getUlimits().get(3));
-        assertEquals("/var/lib/mysql:10m", runConfig.getTmpfs().get(0));
-        assertEquals(1, runConfig.getTmpfs().size());
-        assertEquals("Never", runConfig.getImagePullPolicy());
-        assertEquals(true, runConfig.getReadOnly());
-        assertEquals(true, runConfig.getAutoRemove());
+        Assertions.assertEquals(a("/foo", "/tmp:/tmp"), runConfig.getVolumeConfiguration().getBind());
+        Assertions.assertEquals(a("CAP"), runConfig.getCapAdd());
+        Assertions.assertEquals(a("CAP"), runConfig.getCapDrop());
+        Assertions.assertEquals(Collections.singletonMap("key", "value"), runConfig.getSysctls());
+        Assertions.assertEquals(a("seccomp=unconfined"), runConfig.getSecurityOpts());
+        Assertions.assertEquals("command.sh", runConfig.getCmd().getShell());
+        Assertions.assertEquals(a("8.8.8.8"), runConfig.getDns());
+        Assertions.assertEquals("host", runConfig.getNetworkingConfig().getStandardMode(null));
+        Assertions.assertEquals(a("example.com"), runConfig.getDnsSearch());
+        Assertions.assertEquals("domain.com", runConfig.getDomainname());
+        Assertions.assertEquals("entrypoint.sh", runConfig.getEntrypoint().getShell());
+        Assertions.assertEquals(a("localhost:127.0.0.1"), runConfig.getExtraHosts());
+        Assertions.assertEquals("subdomain", runConfig.getHostname());
+        Assertions.assertEquals(a("redis"), runConfig.getLinks());
+        Assertions.assertEquals((Long) 1L, runConfig.getMemory());
+        Assertions.assertEquals((Long) 1L, runConfig.getMemorySwap());
+        Assertions.assertEquals((Long) 1000000000L, runConfig.getCpus());
+        Assertions.assertEquals("default", runConfig.getIsolation());
+        Assertions.assertEquals((Long) 1L, runConfig.getCpuShares());
+        Assertions.assertEquals("0,1", runConfig.getCpuSet());
+        Assertions.assertEquals("/tmp/envProps.txt", runConfig.getEnvPropertyFile());
+        Assertions.assertEquals("/tmp/props.txt", runConfig.getPortPropertyFile());
+        Assertions.assertEquals(a("8081:8080"), runConfig.getPorts());
+        Assertions.assertEquals(true, runConfig.getPrivileged());
+        Assertions.assertEquals("tomcat", runConfig.getUser());
+        Assertions.assertEquals(a("from"), runConfig.getVolumeConfiguration().getFrom());
+        Assertions.assertEquals("foo", runConfig.getWorkingDir());
+        Assertions.assertNotNull(runConfig.getUlimits());
+        Assertions.assertEquals(4, runConfig.getUlimits().size());
+        assertUlimitEquals(ulimit("memlock", 10, 10), runConfig.getUlimits().get(0));
+        assertUlimitEquals(ulimit("memlock", null, -1), runConfig.getUlimits().get(1));
+        assertUlimitEquals(ulimit("memlock", 1024, null), runConfig.getUlimits().get(2));
+        assertUlimitEquals(ulimit("memlock", 2048, null), runConfig.getUlimits().get(3));
+        Assertions.assertEquals("/var/lib/mysql:10m", runConfig.getTmpfs().get(0));
+        Assertions.assertEquals(1, runConfig.getTmpfs().size());
+        Assertions.assertEquals("Never", runConfig.getImagePullPolicy());
+        Assertions.assertEquals(true, runConfig.getReadOnly());
+        Assertions.assertEquals(true, runConfig.getAutoRemove());
 
         validateEnv(runConfig.getEnv());
 
         // not sure it's worth it to implement 'equals/hashcode' for these
         RestartPolicy policy = runConfig.getRestartPolicy();
-        assertEquals("on-failure", policy.getName());
-        assertEquals(1, policy.getRetry());
+        Assertions.assertEquals("on-failure", policy.getName());
+        Assertions.assertEquals(1, policy.getRetry());
 
         WaitConfiguration wait = runConfig.getWaitConfiguration();
-        assertEquals("http://foo.com", wait.getUrl());
-        assertEquals("pattern", wait.getLog());
-        assertEquals("post_start_command", wait.getExec().getPostStart());
-        assertEquals("pre_stop_command", wait.getExec().getPreStop());
-        assertTrue(wait.getExec().isBreakOnError());
-        assertEquals(5, wait.getTime().intValue());
-        assertTrue(wait.getHealthy());
-        assertEquals(0, wait.getExit().intValue());
+        Assertions.assertEquals("http://foo.com", wait.getUrl());
+        Assertions.assertEquals("pattern", wait.getLog());
+        Assertions.assertEquals("post_start_command", wait.getExec().getPostStart());
+        Assertions.assertEquals("pre_stop_command", wait.getExec().getPreStop());
+        Assertions.assertTrue(wait.getExec().isBreakOnError());
+        Assertions.assertEquals(5, wait.getTime().intValue());
+        Assertions.assertTrue(wait.getHealthy());
+        Assertions.assertEquals(0, wait.getExit().intValue());
 
         LogConfiguration config = runConfig.getLogConfiguration();
-        assertEquals("green", config.getColor());
-        assertTrue(config.isEnabled());
-        assertEquals("SRV", config.getPrefix());
-        assertEquals("iso8601", config.getDate());
-        assertEquals("json",config.getDriver().getName());
-        assertEquals(2, config.getDriver().getOpts().size());
-        assertEquals("1024", config.getDriver().getOpts().get("max-size"));
-        assertEquals("10", config.getDriver().getOpts().get("max-file"));
+        Assertions.assertEquals("green", config.getColor());
+        Assertions.assertTrue(config.isEnabled());
+        Assertions.assertEquals("SRV", config.getPrefix());
+        Assertions.assertEquals("iso8601", config.getDate());
+        Assertions.assertEquals("json", config.getDriver().getName());
+        Assertions.assertEquals(2, config.getDriver().getOpts().size());
+        Assertions.assertEquals("1024", config.getDriver().getOpts().get("max-size"));
+        Assertions.assertEquals("10", config.getDriver().getOpts().get("max-file"));
     }
 
     private UlimitConfig ulimit(String name, Integer hard, Integer soft) {
         return new UlimitConfig(name, hard, soft);
     }
 
-    private Properties props(String ... args) {
+    private Properties props(String... args) {
         Properties ret = new Properties();
         for (int i = 0; i < args.length; i += 2) {
             ret.setProperty(args[i], args[i + 1]);
@@ -1156,24 +1143,24 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
             k(ConfigKey.ASSEMBLY_IGNORE_PERMISSIONS), "true",
             k(ConfigKey.ASSEMBLY_USER), "user",
             k(ConfigKey.NAME), "image",
-            };
+        };
     }
 
     private String[] getTestMultipleAssemblyData() {
         return new String[] {
-                k(ConfigKey.FROM), "busybox",
-                k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_BASEDIR), "/basedir",
-                k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_DESCRIPTOR_REF), "project",
-                k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_EXPORT_BASEDIR), "false",
-                k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_IGNORE_PERMISSIONS), "true",
-                k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_USER), "user",
-                k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_BASEDIR), "/basedir",
-                k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_DESCRIPTOR_REF), "artifact",
-                k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_EXPORT_BASEDIR), "false",
-                k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_IGNORE_PERMISSIONS), "true",
-                k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_USER), "user",
-                k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_NAME), "art",
-                k(ConfigKey.NAME), "image",
+            k(ConfigKey.FROM), "busybox",
+            k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_BASEDIR), "/basedir",
+            k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_DESCRIPTOR_REF), "project",
+            k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_EXPORT_BASEDIR), "false",
+            k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_IGNORE_PERMISSIONS), "true",
+            k(ConfigKey.ASSEMBLIES) + ".1." + k(ConfigKey.ASSEMBLY_USER), "user",
+            k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_BASEDIR), "/basedir",
+            k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_DESCRIPTOR_REF), "artifact",
+            k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_EXPORT_BASEDIR), "false",
+            k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_IGNORE_PERMISSIONS), "true",
+            k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_USER), "user",
+            k(ConfigKey.ASSEMBLIES) + ".2." + k(ConfigKey.ASSEMBLY_NAME), "art",
+            k(ConfigKey.NAME), "image",
         };
     }
 
@@ -1185,10 +1172,11 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
             k(ConfigKey.BIND) + ".2", "/tmp:/tmp",
             k(ConfigKey.CAP_ADD) + ".1", "CAP",
             k(ConfigKey.CAP_DROP) + ".1", "CAP",
+            k(ConfigKey.SYSCTLS) + ".key", "value",
             k(ConfigKey.SECURITY_OPTS) + ".1", "seccomp=unconfined",
             k(ConfigKey.CPUS), "1000000000",
             k(ConfigKey.CPUSET), "0,1",
-            k(ConfigKey.ISOLATION),"default",
+            k(ConfigKey.ISOLATION), "default",
             k(ConfigKey.CPUSHARES), "1",
             k(ConfigKey.CMD), "command.sh",
             k(ConfigKey.DNS) + ".1", "8.8.8.8",
@@ -1218,10 +1206,10 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
             k(ConfigKey.RESTART_POLICY_NAME), "on-failure",
             k(ConfigKey.RESTART_POLICY_RETRY), "1",
             k(ConfigKey.USER), "tomcat",
-            k(ConfigKey.ULIMITS)+".1", "memlock=10:10",
-            k(ConfigKey.ULIMITS)+".2", "memlock=:-1",
-            k(ConfigKey.ULIMITS)+".3", "memlock=1024:",
-            k(ConfigKey.ULIMITS)+".4", "memlock=2048",
+            k(ConfigKey.ULIMITS) + ".1", "memlock=10:10",
+            k(ConfigKey.ULIMITS) + ".2", "memlock=:-1",
+            k(ConfigKey.ULIMITS) + ".3", "memlock=1024:",
+            k(ConfigKey.ULIMITS) + ".4", "memlock=2048",
             k(ConfigKey.VOLUMES) + ".1", "/foo",
             k(ConfigKey.VOLUMES_FROM) + ".1", "from",
             k(ConfigKey.WAIT_EXEC_PRE_STOP), "pre_stop_command",
@@ -1249,20 +1237,21 @@ public class PropertyConfigHandlerTest extends AbstractConfigHandlerTest {
     }
 
     private String[] getSkipTestData(ConfigKey key, boolean value) {
-        return new String[] {k(ConfigKey.NAME), "image", k(key), String.valueOf(value), k(ConfigKey.FROM), "busybox" };
+        return new String[] { k(ConfigKey.NAME), "image", k(key), String.valueOf(value), k(ConfigKey.FROM), "busybox" };
     }
 
     private String k(ConfigKey from) {
         return from.asPropertyKey();
     }
-    private void assertUlimitEquals(UlimitConfig expected, UlimitConfig actual){
-    	assertEquals(expected.getName(), actual.getName());
-        assertEquals(expected.getSoft(), actual.getSoft());
-        assertEquals(expected.getHard(), actual.getHard());
+
+    private void assertUlimitEquals(UlimitConfig expected, UlimitConfig actual) {
+        Assertions.assertEquals(expected.getName(), actual.getName());
+        Assertions.assertEquals(expected.getSoft(), actual.getSoft());
+        Assertions.assertEquals(expected.getHard(), actual.getHard());
     }
 
     private void assertCopyEntryEquals(CopyConfiguration.Entry expected, CopyConfiguration.Entry actual) {
-        assertEquals(expected.getContainerPath(), actual.getContainerPath());
-        assertEquals(expected.getHostDirectory(), actual.getHostDirectory());
+        Assertions.assertEquals(expected.getContainerPath(), actual.getContainerPath());
+        Assertions.assertEquals(expected.getHostDirectory(), actual.getHostDirectory());
     }
 }

@@ -12,7 +12,7 @@ of an image configuration. The following configuration options are supported:
 | Specifies multiple assembly configurations as described in <<build-assembly,Build Assembly>>
 
 | <<config-image-build-assembly, *assembly*>>
-| specifies the assembly configuration as described in <<build-assembly,Build Assembly>>
+| Specifies the assembly configuration as described in <<build-assembly,Build Assembly>>
 
 | <<build-buildargs, *args*>>
 | Map specifying the value of https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables-build-arg[Docker build args]
@@ -25,8 +25,18 @@ described in <<build-buildargs,Build Args>>
 https://docs.docker.com/engine/reference/api/docker_remote_api_v1.24/#build-image-from-a-dockerfile[Docker Remote API] and are restricted to simple options
 (e.g.: memory, shmsize). If you use the respective configuration options for build options natively supported by the build configuration (i.e. `squash`, `noCache`, `cleanup=remove` for buildoption `forcerm=1` and `args` for build args) then these will override any corresponding options given here. The key-value syntax is the same as when defining environment variables or labels as described in <<misc-env,Setting Environment Variables and Labels>>.
 
+| *buildx*
+| Specifies the buildx configuration for multi-architecture images. See  <<build-buildx,Buildx Options>>
+
+| *createImageOptions*
+| Map specifying the create image options to provide to the docker daemon when pulling or
+importing an image.
+These options map to the ones listed as query parameters in the
+https://docs.docker.com/engine/api/v1.41/#operation/ImageCreate[Docker Remote API] and are
+restricted to simple options (e.g.: fromImage, fromSrc, platform).
+
 | *cleanup*
-| Cleanup dangling (untagged) images after each build (including any containers created from them). Default is `try` which tries to remove the old image, but doesn't fail the build if this is not possible because e.g. the image is still used by a running container. Use `remove` if you want to fail the build and `none` if no cleanup is requested.
+| Cleanup dangling (untagged) images after each build, including any stopped containers created from them. Also cleanup dangling images as a result of image tagging, auto-pulling a base image, or auto-pulling a cacheFrom image. Default is `try`, which tries to remove the old image, but doesn't fail the build if this is not possible (e.g. because the image is still used by a running container). Other possible values are `remove`, if you want to fail the build, or `none`, to skip cleanup altogether.
 
 | [[context-dir]]*contextDir*
 | Path to a directory used for the build's context. You can specify the `Dockerfile` to use with *dockerFile*, which by default is the Dockerfile found in the `contextDir`. The Dockerfile can be also located outside of the `contextDir`, if provided with an absolute file path. See <<external-dockerfile, External Dockerfile>> for details.
@@ -88,6 +98,9 @@ a| Scan the archive specified in `dockerArchive` and find the actual repository 
 
 | *maintainer*
 | The author (`MAINTAINER`) field for the generated image
+
+| *network*
+| Set the networking mode for the RUN instructions during build
 
 | *noCache*
 | Don't use Docker's build cache. This can be overwritten by setting a system property `docker.noCache` when running Maven.
