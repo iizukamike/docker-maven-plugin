@@ -8,7 +8,7 @@
 
   <groupId>io.fabric8.dmp</groupId>
   <artifactId>parent</artifactId>
-  <version>0.41.0-SNAPSHOT</version>
+  <version>0.41-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <properties>
@@ -100,6 +100,11 @@
         <plugin>
           <artifactId>maven-release-plugin</artifactId>
           <version>3.0.0-M1</version>
+        </plugin>
+
+        <plugin>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.2.0</version>
         </plugin>
 
         <plugin>

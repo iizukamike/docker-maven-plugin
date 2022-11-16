@@ -5,12 +5,12 @@
   <parent>
     <groupId>io.fabric8.dmp.itests</groupId>
     <artifactId>dmp-it-parent</artifactId>
-    <version>0.41.0-SNAPSHOT</version>
+    <version>0.41-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>dmp-it-spring-boot-jib</artifactId>
-  <version>0.41.0-SNAPSHOT</version>
+  <version>0.41-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <description>Docker Maven Plugin Integration test with Spring Boot With Build Mode JIB</description>
@@ -33,7 +33,7 @@
     <docker.user>fabric8</docker.user>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
-    <spring.version>2.3.3.RELEASE</spring.version>
+    <spring.version>2.5.12</spring.version>
   </properties>
 
   <dependencies>
