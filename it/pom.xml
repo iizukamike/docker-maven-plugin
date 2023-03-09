@@ -5,7 +5,7 @@
   <parent>
     <groupId>io.fabric8.dmp</groupId>
     <artifactId>parent</artifactId>
-    <version>0.41-SNAPSHOT</version>
+    <version>0.43-SNAPSHOT</version>
     <relativePath>../parent/pom.xml</relativePath>
   </parent>
 
@@ -15,7 +15,7 @@
 
   <groupId>io.fabric8.dmp.itests</groupId>
   <artifactId>dmp-it-parent</artifactId>
-  <version>0.41-SNAPSHOT</version>
+  <version>0.43-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <modules>
@@ -33,6 +33,7 @@
     <module>log</module>
     <module>multi-assembly</module>
     <module>net</module>
+    <module>platform-run</module>
     <module>properties</module>
     <module>run-java</module>
     <module>smallest</module>

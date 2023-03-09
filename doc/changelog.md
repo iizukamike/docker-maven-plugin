@@ -1,9 +1,27 @@
 # ChangeLog
-* **0.41-SNAPSHOT** :
+* **0.43-SNAPSHOT** :
+
+* **0.42.0** (2023-02-28):
+  - Support `docker run --platform` ([1641](https://github.com/fabric8io/docker-maven-plugin/issues/1641)) @chonton
+  - Update buildx documentation to amplify the build behavior ([1646](https://github.com/fabric8io/docker-maven-plugin/pull/1646)) @chonton
+  - Default to native platform when creating container ([1645](https://github.com/fabric8io/docker-maven-plugin/pull/1645)) @chonton
+  - JIB ignores the `DOCKER_REGISTRY` environment variable ([1617](https://github.com/fabric8io/docker-maven-plugin/issues/1617)) @rohanKanojia
+
+* **0.41.0** (2023-02-06):
+  - multi-arch build should use provided repository ([1597](https://github.com/fabric8io/docker-maven-plugin/issues/1597)) @merikan
+  - new property docker.build.network to override the network for RUN directives for docker build ([1636](https://github.com/fabric8io/docker-maven-plugin/pull/1636)) @tulinkry
+  - Update Jib Core to v0.23.0 ([1637](https://github.com/fabric8io/docker-maven-plugin/pull/1637)) @rohanKanojia
+  - Update JNR UnixSocket to v0.38.19 ([1638](https://github.com/fabric8io/docker-maven-plugin/pull/1638))
+
+* **0.40.3** (2022-12-18):
   - image/squash option is taken into account when using buildx ([1605](https://github.com/fabric8io/docker-maven-plugin/pull/1605)) @kevinleturc
   - Allow having build args with same name but different value in various sources, which are overriden in the order of precedence in resulting build args map ([1407](https://github.com/fabric8io/docker-maven-plugin/issues/1407)) @pavelsmolensky
   - Use double for `docker.cpus` property and interpret this value in the same way as Docker config option `--cpus` ([1609](https://github.com/fabric8io/docker-maven-plugin/pull/1609)) @vjuranek
   - NPE from Assembly plugin when POM packaging is used ([1146](https://github.com/fabric8io/docker-maven-plugin/issues/1146)) @slawekjaranowski
+  - Docker pulling progress only shown after pull has completed and not in real-time ([1598](https://github.com/fabric8io/docker-maven-plugin/issues/1598)) @causalnet
+  - Bump `org.yaml:snakeyaml` to v1.32 ([1619](https://github.com/fabric8io/docker-maven-plugin/pull/1619)) @pen4
+  - Bump `com.google.cloud.tools:jib-core` to v0.23.0 ([1620](https://github.com/fabric8io/docker-maven-plugin/pull/1620)) @pen4
+  - Bump `com.google.guava:guava` to v31.1-jre @rohanKanojia
 
 * **0.40.2** (2022-07-31):
   - Plugin doesn't abort building an image in case Podman is used and Dockerfile can't be processed ([1562](https://github.com/fabric8io/docker-maven-plugin/issues/1512)) @jh-cd 
